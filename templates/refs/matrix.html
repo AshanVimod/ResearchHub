@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Literature matrix{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Literature matrix</h1>
+    <p class="page-sub">Click a cell to edit it. Enter saves, Esc cancels. Excluded references are hidden.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('refs.matrix_export', fmt='csv') }}"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>CSV</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('refs.matrix_export', fmt='xlsx') }}"><i class="bi bi-file-earmark-excel me-1" aria-hidden="true"></i>Excel</a>
+  </div>
+</div>
+{% include "refs/_tabs.html" %}
+
+<div x-data="matrixCols({{ matrix|map(attribute=0)|list|tojson|forceescape }})">
+  <fieldset class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+    <legend class="small text-ink-2 me-1 mb-0 float-none w-auto">Columns:</legend>
+    {% for k, label in matrix %}
+    <input type="checkbox" class="btn-check" id="col-{{ k }}" x-model="shown" value="{{ k }}" autocomplete="off">
+    <label class="btn btn-sm btn-outline-secondary" for="col-{{ k }}">{{ label }}</label>
+    {% endfor %}
+  </fieldset>
+
+  {% if rows %}
+  <div class="panel matrix-wrap">
+    <table class="table matrix">
+      <thead><tr>
+        <th scope="col" class="sticky-col">Reference</th>
+        {% for k, label in matrix %}<th scope="col" x-show="shown.includes('{{ k }}')">{{ label }}</th>{% endfor %}
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <th scope="row" class="sticky-col">
+            <a href="{{ url_for('refs.view', ref_id=r.id) }}" class="d-block fw-semibold text-body text-decoration-none">{{ ieee.author_list(ieee.authors_of(r))|truncate(40) or r.cite_key }} ({{ r.year or 'n.d.' }})</a>
+            <span class="small text-ink-2 d-block matrix-title">{{ r.title }}</span>
+          </th>
+          {% for k, label in matrix %}
+          <td x-show="shown.includes('{{ k }}')">{% with ref=r, field=k, editing=False %}{% include "refs/_cell.html" %}{% endwith %}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="panel"><div class="empty"><i class="bi bi-table" aria-hidden="true"></i><h3>No references yet</h3>
+    <p>The matrix fills in as you add papers, with one row per reference.</p><a class="btn btn-primary" href="{{ url_for('refs.new') }}">Add a reference</a></div></div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.matrixCols = function (all) {
+  let shown = all;
+  try { shown = JSON.parse(localStorage.getItem("rh-matrix-cols")) || all; } catch (_) {}
+  return {
+    shown,
+    init() { this.$watch("shown", (v) => { try { localStorage.setItem("rh-matrix-cols", JSON.stringify(v)); } catch (_) {} }); },
+  };
+};
+</script>
+{% endblock %}

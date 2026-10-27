@@ -1,0 +1,9 @@
+.venv/
+data/
+backups/
+__pycache__/
+*.pyc
+.pytest_cache/
+experiments_pending.jsonl
+demo-data/
+sample-data/

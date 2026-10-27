@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Idea inbox</h1>
+    <p class="page-sub">Everything captured with Alt+N. Turn each idea into a task, a reference note or a meeting agenda point, or archive it.</p>
+  </div>
+  <div class="btn-group" role="group" aria-label="Show">
+    <a class="btn btn-outline-secondary{{ ' active' if show != 'archived' }}" href="{{ url_for('inbox.index') }}" {% if show != 'archived' %}aria-current="true"{% endif %}>Open</a>
+    <a class="btn btn-outline-secondary{{ ' active' if show == 'archived' }}" href="{{ url_for('inbox.index', show='archived') }}" {% if show == 'archived' %}aria-current="true"{% endif %}>Done &amp; archived</a>
+  </div>
+</div>
+
+<form class="panel mb-3" method="post" action="{{ url_for('inbox.add') }}">
+  <div class="panel-body d-flex gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="visually-hidden" for="inbox-text">New idea</label>
+    <input class="form-control" id="inbox-text" name="text" placeholder="Capture an idea…" required autofocus>
+    <button class="btn btn-primary" type="submit">Capture</button>
+  </div>
+</form>
+
+{% if pending %}
+<div class="rh-alert warning mb-3" role="status"><i class="bi bi-journal-text" aria-hidden="true"></i>
+  <span class="msg">{{ pending|length }} agenda point{{ 's' if pending|length != 1 }} waiting for your next diary entry: {{ pending|join('; ')|truncate(120) }}</span>
+  <a class="go" href="{{ url_for('diary.new') }}">New entry<i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+  <form method="post" action="{{ url_for('inbox.clear_agenda') }}" data-confirm="Discard the agenda points waiting for your next diary entry?" data-confirm-label="Discard">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="linklike small" type="submit">Discard</button></form>
+</div>
+{% endif %}
+
+<div class="panel"><div class="panel-body py-1">
+  {% for i in items %}
+  <div class="inbox-item" x-data="{ mode: null }">
+    <div class="row-item">
+      <i class="bi bi-lightbulb text-ink-2" aria-hidden="true"></i>
+      <span class="flex-grow-1" style="overflow-wrap:anywhere">{{ i.text }}</span>
+      <span class="small text-ink-2 text-nowrap d-none d-sm-inline">{{ i.created_at|nice_date('%d %b') }}</span>
+      {% if show == 'archived' %}
+        <form method="post" action="{{ url_for('inbox.process', item_id=i.id, action='restore') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline-secondary" type="submit">Restore</button></form>
+      {% else %}
+        <div class="d-flex gap-1 flex-none" role="group" aria-label="Convert idea">
+          <form method="post" action="{{ url_for('inbox.process', item_id=i.id, action='task') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-secondary text-nowrap" type="submit" title="Make a task"><i class="bi bi-kanban" aria-hidden="true"></i><span class="hide-sm ms-1">Task</span></button></form>
+          <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" @click="mode = mode === 'ref' ? null : 'ref'" :aria-expanded="mode === 'ref'" aria-controls="cv-{{ i.id }}" title="Add to a reference's notes" {{ 'disabled' if not refs }}>
+            <i class="bi bi-journal-bookmark" aria-hidden="true"></i><span class="hide-sm ms-1">Ref note</span></button>
+          <button class="btn btn-sm btn-outline-secondary text-nowrap" type="button" @click="mode = mode === 'agenda' ? null : 'agenda'" :aria-expanded="mode === 'agenda'" aria-controls="cv-{{ i.id }}" title="Add to a meeting agenda">
+            <i class="bi bi-journal-text" aria-hidden="true"></i><span class="hide-sm ms-1">Agenda</span></button>
+          <form method="post" action="{{ url_for('inbox.process', item_id=i.id, action='archive') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-ghost" type="submit" aria-label="Archive"><i class="bi bi-archive" aria-hidden="true"></i></button></form>
+        </div>
+      {% endif %}
+    </div>
+    {% if show != 'archived' %}
+    <div id="cv-{{ i.id }}" class="convert-panel" x-show="mode" x-cloak>
+      <form x-show="mode === 'ref'" class="d-flex flex-wrap gap-2" method="post" action="{{ url_for('inbox.process', item_id=i.id, action='ref') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="visually-hidden" for="cvr-{{ i.id }}">Reference</label>
+        <select class="form-select form-select-sm w-auto flex-grow-1" id="cvr-{{ i.id }}" name="ref_id" required>
+          {% for r in refs %}<option value="{{ r.id }}">{{ r.cite_key }}: {{ r.title|truncate(60) }}</option>{% endfor %}</select>
+        <button class="btn btn-sm btn-primary" type="submit">Add to notes</button>
+      </form>
+      <form x-show="mode === 'agenda'" class="d-flex flex-wrap gap-2" method="post" action="{{ url_for('inbox.process', item_id=i.id, action='agenda') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="visually-hidden" for="cva-{{ i.id }}">Meeting</label>
+        <select class="form-select form-select-sm w-auto flex-grow-1" id="cva-{{ i.id }}" name="entry">
+          <option value="next">Next meeting (new diary entry)</option>
+          {% for e in entries %}<option value="{{ e.id }}">Meeting of {{ e.meeting_date|nice_date }}</option>{% endfor %}</select>
+        <button class="btn btn-sm btn-primary" type="submit">Add to agenda</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="empty"><i class="bi bi-inbox" aria-hidden="true"></i>
+    <h3>{{ 'Nothing here yet' if show == 'archived' else 'Inbox zero' }}</h3>
+    <p>{{ 'Converted and archived ideas show up here.' if show == 'archived' else 'Press Alt+N anywhere to capture a thought without leaving the page.' }}</p></div>
+  {% endfor %}
+</div></div>
+{% endblock %}

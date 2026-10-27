@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Import BibTeX{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1 class="page-title">Import BibTeX</h1>
+  <p class="page-sub">Paste entries or upload a .bib file exported from Zotero, Mendeley or Google Scholar.</p></div></div>
+{% include "refs/_tabs.html" %}
+
+{% if not entries %}
+<form class="panel" method="post" action="{{ url_for('refs.import_bib') }}" enctype="multipart/form-data">
+  <div class="panel-body">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="bibtex">BibTeX</label>
+    <textarea class="form-control font-monospace small mb-3" id="bibtex" name="bibtex" rows="12" placeholder="@article{lecun2015deep,&#10;  author = {LeCun, Yann and Bengio, Yoshua and Hinton, Geoffrey},&#10;  title = {Deep learning},&#10;  journal = {Nature},&#10;  year = {2015}&#10;}">{{ text }}</textarea>
+    <label class="form-label" for="bibfile">…or a .bib file</label>
+    <input class="form-control mb-3" type="file" id="bibfile" name="bibfile" accept=".bib,text/plain">
+    <button class="btn btn-primary" type="submit">Preview</button>
+  </div>
+</form>
+{% else %}
+<form method="post" action="{{ url_for('refs.import_bib') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="confirm" value="1">
+  <textarea class="d-none" name="bibtex" aria-hidden="true">{{ text }}</textarea>
+  <div class="panel mb-3">
+    <div class="panel-head"><h2 class="panel-title">{{ entries|length }} entr{{ 'y' if entries|length == 1 else 'ies' }} found</h2>
+      <span class="small text-ink-2">Exact DOI duplicates are unchecked and will be skipped</span></div>
+    <div class="table-responsive mt-2"><table class="table">
+      <thead><tr><th scope="col"><span class="visually-hidden">Import</span></th><th scope="col">IEEE preview</th><th scope="col">Check</th></tr></thead>
+      <tbody>
+      {% for e in entries %}
+      <tr>
+        <td><input class="form-check-input" type="checkbox" name="pick" value="{{ loop.index0 }}" id="pick-{{ loop.index0 }}" {{ '' if e.doi_dup else 'checked' }} {{ 'disabled' if e.doi_dup }}
+                   aria-label="Import entry {{ loop.index }}"></td>
+        <td class="small"><label for="pick-{{ loop.index0 }}">{{ e.ieee }}</label></td>
+        <td class="small text-nowrap">
+          {% if e.doi_dup %}<span class="chip danger">DOI exists: {{ e.doi_dup.cite_key }}</span>
+          {% elif e.near %}<span class="chip warning" title="{{ e.near.title }}">Similar: {{ e.near.cite_key }}</span>
+          {% else %}<span class="chip success">New</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Import selected</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('refs.import_form') }}">Start over</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

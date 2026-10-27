@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Labels{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Dataset labels</h1>
+    <p class="page-sub">One row per entity × period × evidence source. An entity-period is positive if any of its rows is positive.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('labels.export', nc='1' if include_nc else None) }}"><i class="bi bi-filetype-csv me-1" aria-hidden="true"></i>Export entity-periods</a>
+    <button class="btn btn-primary" type="button" onclick="rhOpenForm('{{ url_for('labels.new') }}')"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add label row</button>
+  </div>
+</div>
+
+<div class="strip mb-3" style="grid-template-columns: repeat(4, minmax(0,1fr))">
+  <div><div class="eyebrow mb-1">Positive entity-periods</div><div class="stat num" style="color:var(--rh-danger)">{{ summary.positive }}</div>
+    <div class="small text-ink-2 mt-1">{{ summary.entities_positive }} entit{{ 'y' if summary.entities_positive == 1 else 'ies' }}</div></div>
+  <div><div class="eyebrow mb-1">Entity-periods</div><div class="stat num">{{ summary.entity_periods }}</div></div>
+  <div><div class="eyebrow mb-1">Doubtful</div><div class="stat num">{{ summary.doubtful }}</div></div>
+  <div><div class="eyebrow mb-1">Recorded, not counted</div>
+    <form method="get" class="mt-2">{% for k, v in f.items() if k != 'nc' and v %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="nc" name="nc" value="1" {{ 'checked' if include_nc }} onchange="this.form.submit()">
+        <label class="form-check-label small" for="nc">Count as positive</label></div></form></div>
+</div>
+
+{% if summary.per_source or summary.per_year %}
+<div class="row g-3 mb-3">
+  <div class="col-md-6"><section class="panel h-100" aria-labelledby="ps-h"><div class="panel-body">
+    <h2 class="eyebrow mb-2" id="ps-h">By source (rows)</h2>
+    <table class="table table-sm mb-0"><thead><tr><th scope="col">Source</th><th scope="col" class="text-end">Rows</th><th scope="col" class="text-end">Positive</th></tr></thead><tbody>
+      {% for s, c in summary.per_source.items() %}<tr><td>{{ sources[s] }}</td><td class="text-end num">{{ c.rows }}</td><td class="text-end num fw-semibold">{{ c.positive }}</td></tr>{% endfor %}
+    </tbody></table></div></section></div>
+  <div class="col-md-6"><section class="panel h-100" aria-labelledby="py-h"><div class="panel-body">
+    <h2 class="eyebrow mb-2" id="py-h">By period (entity-periods)</h2>
+    <table class="table table-sm mb-0"><thead><tr><th scope="col">Period</th><th scope="col" class="text-end">Entity-periods</th><th scope="col" class="text-end">Positive</th></tr></thead><tbody>
+      {% for y, c in summary.per_year.items() %}<tr><td class="num">{{ y }}</td><td class="text-end num">{{ c.entity_periods }}</td><td class="text-end num fw-semibold">{{ c.positive }}</td></tr>{% endfor %}
+    </tbody></table></div></section></div>
+</div>
+{% endif %}
+
+<form class="d-flex flex-wrap gap-2 mb-3 align-items-center" method="get" aria-label="Filter labels">
+  {% if include_nc %}<input type="hidden" name="nc" value="1">{% endif %}
+  <label class="visually-hidden" for="lq">Entity</label>
+  <input class="form-control form-control-sm" style="max-width:220px" id="lq" name="q" type="search" value="{{ f.q }}" placeholder="Entity or code">
+  <label class="visually-hidden" for="lsrc">Source</label>
+  <select class="form-select form-select-sm w-auto" id="lsrc" name="source" onchange="this.form.submit()"><option value="">All sources</option>
+    {% for k, v in sources.items() %}<option value="{{ k }}" {{ 'selected' if f.source == k }}>{{ v }}</option>{% endfor %}</select>
+  <label class="visually-hidden" for="llab">Label</label>
+  <select class="form-select form-select-sm w-auto" id="llab" name="label" onchange="this.form.submit()"><option value="">Any label</option>
+    <option value="1" {{ 'selected' if f.label == '1' }}>Positive (1)</option><option value="0" {{ 'selected' if f.label == '0' }}>Negative (0)</option></select>
+  <label class="visually-hidden" for="lsec">Group</label>
+  <select class="form-select form-select-sm w-auto" id="lsec" name="entity_group" onchange="this.form.submit()"><option value="">All groups</option>
+    {% for s in entity_groups %}<option {{ 'selected' if f.entity_group == s }}>{{ s }}</option>{% endfor %}</select>
+  <label class="visually-hidden" for="lfy">Period</label>
+  <select class="form-select form-select-sm w-auto" id="lfy" name="period" onchange="this.form.submit()"><option value="">All periods</option>
+    {% for y in years %}<option {{ 'selected' if f.period == y }}>{{ y }}</option>{% endfor %}</select>
+  <div class="form-check ms-1"><input class="form-check-input" type="checkbox" id="ldb" name="doubtful" value="1" {{ 'checked' if f.doubtful == '1' }} onchange="this.form.submit()">
+    <label class="form-check-label small" for="ldb">Doubtful only</label></div>
+  <button class="btn btn-sm btn-outline-secondary" type="submit">Filter</button>
+  {% if filtered %}<a class="small" href="{{ url_for('labels.index', nc='1' if include_nc else None) }}">Clear</a>{% endif %}
+</form>
+
+<div class="panel mb-3">
+  {% if rows %}
+  <div class="table-responsive"><table class="table table-hover table-sm labels-table">
+    <thead><tr><th scope="col">Entity</th><th scope="col">Period</th><th scope="col">Source</th><th scope="col">Label</th><th scope="col">Strength</th>
+      <th scope="col">Evidence</th><th scope="col">Flags</th><th scope="col">Rules</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><div class="fw-semibold">{{ r.entity }}</div><div class="small text-ink-2">{{ r.entity_code or '' }}{{ ' · ' if r.entity_code and r.entity_group }}{{ r.entity_group or '' }}</div></td>
+        <td class="num text-nowrap">{{ r.period }}</td>
+        <td class="small">{{ r.source }}{% if r.event_date %}<div class="text-ink-2">{{ r.event_date|nice_date }}</div>{% endif %}</td>
+        <td>{% if r.label == 1 and (include_nc or r.evidence_strength != 'not_counted') %}<span class="chip danger">1 · positive</span>
+            {% elif r.label == 1 %}<span class="chip warning" title="Recorded, not counted rows are excluded from positives">1 · not counted</span>
+            {% else %}<span class="chip">0</span>{% endif %}</td>
+        <td class="small">{{ strengths.get(r.evidence_strength or '', r.evidence_strength) if r.evidence_strength else '' }}</td>
+        <td class="small">
+          {% if r.evidence_url %}<a href="{{ r.evidence_url }}" target="_blank" rel="noopener" aria-label="Evidence link for {{ r.entity }} {{ r.period }}"><i class="bi bi-link-45deg" aria-hidden="true"></i>Link</a>{% endif %}
+          {% if r.evidence_file_id %}<a class="ms-1" href="{{ url_for('files.view_pdf', file_id=r.evidence_file_id) }}" title="{{ r.evidence_file_name }}"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>File</a>{% endif %}
+        </td>
+        <td>{% if r.doubtful %}<span class="chip warning">Doubtful</span>{% endif %}{% if r.reviewed_with_supervisor %}<span class="chip success" title="Reviewed with supervisor"><i class="bi bi-person-check" aria-hidden="true"></i></span>{% endif %}</td>
+        <td class="small text-ink-2">{{ r.rule_version or '' }}</td>
+        <td class="text-end text-nowrap">
+          <button class="btn btn-sm btn-ghost" type="button" onclick="rhOpenForm('{{ url_for('labels.edit', label_id=r.id) }}')" aria-label="Edit {{ r.entity }} {{ r.period }} {{ r.source }}"><i class="bi bi-pencil" aria-hidden="true"></i></button>
+          <button class="btn btn-sm btn-ghost" type="button" onclick="rhOpenForm('{{ url_for('labels.new', entity=r.entity, entity_code=r.entity_code or '', entity_group=r.entity_group or '', period=r.period) }}')" aria-label="Add another source for {{ r.entity }} {{ r.period }}" title="Add another source for this company-year"><i class="bi bi-plus-square" aria-hidden="true"></i></button>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty"><i class="bi bi-tags" aria-hidden="true"></i>
+    {% if filtered %}<h3>No rows match</h3><a class="btn btn-outline-secondary" href="{{ url_for('labels.index') }}">Clear filters</a>
+    {% else %}<h3>No labels yet</h3><p>Record each piece of evidence for an entity and period as its own row. The counts above update as you go.</p>
+      <button class="btn btn-primary" type="button" onclick="rhOpenForm('{{ url_for('labels.new') }}')">Add your first label row</button>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<section class="panel" id="rules" aria-labelledby="rules-h" x-data="{ edit: false }">
+  <div class="panel-head"><h2 class="panel-title" id="rules-h"><i class="bi bi-book" aria-hidden="true"></i>Labelling rules <span class="chip primary ms-1">{{ rules.version if rules else 'v1' }}</span></h2>
+    <button class="btn btn-sm btn-outline-secondary" type="button" @click="edit = !edit" x-text="edit ? 'Cancel' : 'Edit rules'">Edit rules</button></div>
+  <div class="panel-body">
+    <div class="prose" x-show="!edit">{{ (rules.text if rules else '')|md }}</div>
+    <form x-show="edit" x-cloak method="post" action="{{ url_for('labels.rules') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="visually-hidden" for="rules-text">Rules (Markdown)</label>
+      <textarea class="form-control font-monospace small mb-2" id="rules-text" name="text" rows="10" aria-describedby="rules-help">{{ rules.text if rules else '' }}</textarea>
+      <p class="form-text" id="rules-help">Saving creates a new version. Existing rows keep the version they were labelled under, so you can see which rows need a second look.</p>
+      <button class="btn btn-primary" type="submit">Save as new version</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

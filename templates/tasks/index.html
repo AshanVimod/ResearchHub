@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Tasks{% endblock %}
+{% set labels = {'todo': 'To do', 'doing': 'Doing', 'done': 'Done'} %}
+{% set dots = {'todo': 'var(--rh-line-strong)', 'doing': 'var(--rh-accent)', 'done': 'var(--rh-success)'} %}
+{% macro card(t) %}
+  {% set overdue = t.due_date and t.status != 'done' and t.due_date < today.isoformat() %}
+  <div class="card-task{{ ' done' if t.status == 'done' }}{{ ' overdue' if overdue }}" data-id="{{ t.id }}" tabindex="0" role="button"
+       aria-label="{{ t.title }}. Press Enter to edit." onclick="rhOpenForm('{{ url_for('tasks.edit', task_id=t.id) }}')"
+       onkeydown="if(event.key==='Enter'){rhOpenForm('{{ url_for('tasks.edit', task_id=t.id) }}')}">
+    <div class="t">{{ t.title }}</div>
+    <div class="m">
+      <i class="bi bi-flag-fill prio-{{ t.priority }} small" aria-label="Priority {{ t.priority }}" title="Priority {{ t.priority }}"></i>
+      {% if t.due_date %}
+        <span class="chip {{ 'danger' if overdue else ('warning' if t.due_date == today.isoformat() and t.status != 'done' else '') }}">
+          <i class="bi bi-calendar-event" aria-hidden="true"></i>{{ 'Overdue · ' if overdue }}{{ t.due_date|nice_date('%d %b') }}</span>
+      {% endif %}
+      {% if t.milestone_title %}<span class="chip primary text-truncate" style="max-width:150px" title="{{ t.milestone_title }}">{{ t.milestone_title.split('(')[0] }}</span>{% endif %}
+      {% if t.diary_entry_id %}<span class="chip" title="From a supervisor meeting"><i class="bi bi-journal-text" aria-hidden="true"></i>Diary</span>{% endif %}
+      {% for tag in task_tags.get(t.id, []) %}<span class="chip">#{{ tag }}</span>{% endfor %}
+    </div>
+  </div>
+{% endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Tasks</h1>
+    <p class="page-sub">Drag cards between columns. Done stamps the completion date.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <div class="btn-group" role="group" aria-label="View">
+      <a class="btn btn-outline-secondary{{ ' active' if f.view != 'list' }}" href="{{ url_for('tasks.index', **dict(f, view='')) }}" {% if f.view != 'list' %}aria-current="true"{% endif %}><i class="bi bi-kanban me-1" aria-hidden="true"></i>Board</a>
+      <a class="btn btn-outline-secondary{{ ' active' if f.view == 'list' }}" href="{{ url_for('tasks.index', **dict(f, view='list')) }}" {% if f.view == 'list' %}aria-current="true"{% endif %}><i class="bi bi-list-ul me-1" aria-hidden="true"></i>List</a>
+    </div>
+    <button class="btn btn-primary" type="button" onclick="rhOpenForm('{{ url_for('tasks.new') }}')"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New task</button>
+  </div>
+</div>
+
+<form class="d-flex flex-wrap gap-2 mb-3 align-items-center" method="get" aria-label="Filter tasks">
+  <input type="hidden" name="view" value="{{ f.view }}">
+  <label class="visually-hidden" for="f-m">Milestone</label>
+  <select class="form-select form-select-sm w-auto" id="f-m" name="milestone" onchange="this.form.submit()">
+    <option value="">All milestones</option>
+    {% for m in milestones %}<option value="{{ m.id }}" {{ 'selected' if f.milestone == m.id|string }}>{{ m.title }}</option>{% endfor %}
+  </select>
+  <label class="visually-hidden" for="f-ch">Chapter</label>
+  <select class="form-select form-select-sm w-auto" id="f-ch" name="chapter" onchange="this.form.submit()">
+    <option value="">All chapters</option>
+    {% for c in chapters %}<option value="{{ c.id }}" {{ 'selected' if f.chapter == c.id|string }}>{{ c.ordinal }}. {{ c.title }}</option>{% endfor %}
+  </select>
+  <label class="visually-hidden" for="f-d">Due</label>
+  <select class="form-select form-select-sm w-auto" id="f-d" name="due" onchange="this.form.submit()">
+    <option value="">Any due date</option>
+    {% for k, v in due_windows.items() %}<option value="{{ k }}" {{ 'selected' if f.due == k }}>{{ v }}</option>{% endfor %}
+  </select>
+  {% if tags %}
+  <label class="visually-hidden" for="f-t">Tag</label>
+  <select class="form-select form-select-sm w-auto" id="f-t" name="tag" onchange="this.form.submit()">
+    <option value="">Any tag</option>
+    {% for t in tags %}<option value="{{ t }}" {{ 'selected' if f.tag == t }}>#{{ t }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <noscript><button class="btn btn-sm btn-outline-secondary">Filter</button></noscript>
+  {% if filtered %}<a class="small" href="{{ url_for('tasks.index', view=f.view) }}">Clear filters</a>{% endif %}
+</form>
+
+{% if not rows and not filtered %}
+  <div class="panel"><div class="empty">
+    <i class="bi bi-kanban" aria-hidden="true"></i><h3>No tasks yet</h3>
+    <p>Add tasks here, or record a supervisor meeting: its actions turn into tasks automatically.</p>
+    <button class="btn btn-primary" type="button" onclick="rhOpenForm('{{ url_for('tasks.new') }}')">Add your first task</button>
+  </div></div>
+{% elif f.view == 'list' %}
+  <div class="panel"><div class="table-responsive">
+    <table class="table table-hover">
+      <thead><tr><th scope="col">Task</th><th scope="col">Status</th><th scope="col">Priority</th><th scope="col">Due</th><th scope="col">Milestone</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+      {% for t in rows %}
+        {% set overdue = t.due_date and t.status != 'done' and t.due_date < today.isoformat() %}
+        <tr>
+          <td class="fw-semibold{{ ' text-decoration-line-through text-ink-2' if t.status == 'done' }}">{{ t.title }}
+            {% for tag in task_tags.get(t.id, []) %}<span class="chip ms-1">#{{ tag }}</span>{% endfor %}</td>
+          <td><span class="chip {{ {'doing':'accent','done':'success'}.get(t.status, '') }}">{{ labels[t.status] }}</span></td>
+          <td><i class="bi bi-flag-fill prio-{{ t.priority }}" aria-hidden="true"></i> {{ t.priority }}</td>
+          <td class="num">{% if t.due_date %}<span class="{{ 'text-danger fw-semibold' if overdue }}">{{ t.due_date|nice_date }}</span>{% if overdue %} <span class="chip danger">Overdue</span>{% endif %}{% else %}<span class="text-ink-2">—</span>{% endif %}</td>
+          <td class="small text-ink-2">{{ t.milestone_title or '—' }}</td>
+          <td class="text-end"><button class="btn btn-sm btn-ghost" type="button" onclick="rhOpenForm('{{ url_for('tasks.edit', task_id=t.id) }}')" aria-label="Edit {{ t.title }}"><i class="bi bi-pencil" aria-hidden="true"></i></button></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">No tasks match these filters.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+{% else %}
+  <div class="board" id="board">
+    {% for status in ['todo', 'doing', 'done'] %}
+    <section class="column" aria-labelledby="col-{{ status }}">
+      <div class="column-head">
+        <span class="dot" style="background:{{ dots[status] }}" aria-hidden="true"></span>
+        <h2 class="h6 mb-0" id="col-{{ status }}">{{ labels[status] }}</h2>
+        <span class="n">{{ columns[status]|length }}</span>
+        <button class="btn btn-sm btn-ghost btn-icon ms-auto" type="button" onclick="rhOpenForm('{{ url_for('tasks.new', status=status) }}')" aria-label="Add task to {{ labels[status] }}"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+      </div>
+      <div class="column-list" data-status="{{ status }}">
+        {% for t in columns[status] %}{{ card(t) }}{% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+  <p class="small text-ink-2 mt-3"><i class="bi bi-keyboard me-1" aria-hidden="true"></i>Keyboard: focus a card and press Enter to edit it; change its status in the form.</p>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/sortable/Sortable.min.js') }}"></script>
+<script>
+document.querySelectorAll(".column-list").forEach((list) => {
+  new Sortable(list, {
+    group: "tasks", animation: 150, delay: 120, delayOnTouchOnly: true, forceFallback: true, fallbackTolerance: 4,
+    onEnd(evt) {
+      const id = evt.item.dataset.id, status = evt.to.dataset.status;
+      if (evt.from === evt.to && evt.oldIndex === evt.newIndex) return;
+      rhFetch(`/api/tasks/${id}`, { method: "PATCH", body: { status, position: evt.newIndex } })
+        .then(() => {
+          evt.item.classList.toggle("done", status === "done");
+          if (status === "done") evt.item.classList.remove("overdue");
+          document.querySelectorAll(".column").forEach((c) => (c.querySelector(".n").textContent = c.querySelectorAll(".card-task").length));
+        })
+        .catch((e) => { rhToast(e.message, "danger"); setTimeout(() => location.reload(), 800); });
+    },
+  });
+});
+const editId = new URLSearchParams(location.search).get("edit");
+if (editId) rhOpenForm(`/tasks/${parseInt(editId, 10)}/edit`);
+</script>
+{% endblock %}

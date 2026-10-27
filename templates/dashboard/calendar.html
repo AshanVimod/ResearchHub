@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Calendar</h1>
+    <p class="page-sub">Milestones, supervisor meetings and task due dates. Drag a task to change its due date.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-3 small text-ink-2" aria-label="Legend">
+    <span><span class="legend-dot" style="background:var(--rh-primary)"></span>Milestone</span>
+    <span><span class="legend-dot" style="background:var(--cat-meeting)"></span>Meeting</span>
+    <span><span class="legend-dot" style="border:1px dashed var(--cat-meeting)"></span>Planned meeting</span>
+    <span><span class="legend-dot" style="background:var(--rh-accent)"></span>Task</span>
+    <span><span class="legend-dot" style="background:var(--rh-danger)"></span>Overdue</span>
+  </div>
+</div>
+<div class="panel"><div class="panel-body"><div id="calendar"></div></div></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/fullcalendar/index.global.min.js') }}"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const narrow = matchMedia("(max-width: 767px)").matches;
+  const cal = new FullCalendar.Calendar(document.getElementById("calendar"), {
+    initialView: narrow ? "listMonth" : "dayGridMonth",
+    firstDay: 1,
+    height: "auto",
+    headerToolbar: { left: "prev,next today", center: "title", right: narrow ? "listMonth,dayGridMonth" : "dayGridMonth,timeGridWeek,listMonth" },
+    buttonText: { today: "Today", month: "Month", week: "Week", list: "List" },
+    events: "/api/calendar",
+    eventStartEditable: false,
+    eventDidMount: (info) => { info.el.title = `${info.event.extendedProps.kind}: ${info.event.title}`; },
+    eventDrop: (info) => {
+      const id = info.event.extendedProps.taskId;
+      if (!id) { info.revert(); return; }
+      rhFetch(`/api/tasks/${id}`, { method: "PATCH", body: { due_date: info.event.startStr.slice(0, 10) } })
+        .then(() => rhToast(`Moved “${info.event.title}” to ${info.event.start.toLocaleDateString()}.`))
+        .catch((e) => { info.revert(); rhToast(e.message, "danger"); });
+    },
+  });
+  cal.render();
+});
+</script>
+{% endblock %}

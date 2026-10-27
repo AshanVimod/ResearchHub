@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Compare runs{% endblock %}
+{% macro fmt(v) %}{% if v is number %}{{ ('%.3f'|format(v)).rstrip('0').rstrip('.') if v is float else v }}{% elif v is not none %}{{ v }}{% else %}<span class="text-ink-2">—</span>{% endif %}{% endmacro %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('experiments.index') }}">Experiments</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Compare</li></ol></nav>
+<div class="page-head"><h1 class="page-title">Compare {{ rows|length }} runs</h1></div>
+<div class="panel"><div class="table-responsive">
+  <table class="table compare-table">
+    <thead><tr><th scope="col"><span class="visually-hidden">Field</span></th>
+      {% for r in rows %}<th scope="col"><a href="{{ url_for('experiments.view', exp_id=r.id) }}">{{ r.run_name }}</a></th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><th scope="row">Approach</th>{% for r in rows %}<td>{{ approaches.get(r.approach, r.approach) }}</td>{% endfor %}</tr>
+      <tr><th scope="row">Model</th>{% for r in rows %}<td>{{ r.model or '—' }}</td>{% endfor %}</tr>
+      <tr><th scope="row">Data</th>{% for r in rows %}<td>{{ r.data_version or '—' }}</td>{% endfor %}</tr>
+      <tr><th scope="row">Split</th>{% for r in rows %}<td>{{ r.split_desc or '—' }}</td>{% endfor %}</tr>
+      <tr class="section"><th scope="rowgroup" colspan="{{ rows|length + 1 }}">Metrics <span class="fw-normal text-ink-2">· best in bold</span></th></tr>
+      {% for c in cols %}<tr><th scope="row">{{ labels.get(c, c) }}</th>
+        {% for r in rows %}<td class="num {{ 'fw-bold best' if best[c] == r.id }}">{{ fmt(metrics[r.id].get(c)) }}{% if best[c] == r.id %}<span class="visually-hidden"> (best)</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}
+      {% if param_keys %}<tr class="section"><th scope="rowgroup" colspan="{{ rows|length + 1 }}">Parameters <span class="fw-normal text-ink-2">· differences highlighted</span></th></tr>{% endif %}
+      {% for k in param_keys %}
+      <tr><th scope="row" class="font-monospace small">{{ k }}</th>
+        {% for r in rows %}{% set v = params[r.id].get(k) %}<td class="num small {{ 'diff' if param_diff[k] }}">{{ fmt(v) }}</td>{% endfor %}</tr>
+      {% endfor %}
+      <tr class="section"><th scope="rowgroup" colspan="{{ rows|length + 1 }}">Provenance</th></tr>
+      <tr><th scope="row">Notebook</th>{% for r in rows %}<td class="small text-break">{{ r.notebook_path or '—' }}</td>{% endfor %}</tr>
+      <tr><th scope="row">Commit</th>{% for r in rows %}<td class="small font-monospace">{{ r.git_commit or '—' }}</td>{% endfor %}</tr>
+      <tr><th scope="row">When</th>{% for r in rows %}<td class="small num">{{ r.run_at.replace('T', ' ')[:16] }}</td>{% endfor %}</tr>
+    </tbody>
+  </table>
+</div></div>
+{% endblock %}

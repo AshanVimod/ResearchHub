@@ -1,0 +1,72 @@
+<form hx-post="{{ url_for('tasks.update', task_id=task.id) if task.id else url_for('tasks.create') }}" hx-target="#form-modal-content" hx-swap="innerHTML" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="modal-header">
+    <h2 class="modal-title" id="form-modal-title">{{ 'Edit task' if task.id else 'New task' }}</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  </div>
+  <div class="modal-body">
+    <div class="mb-3">
+      <label class="form-label" for="t-title">Title <span class="text-danger" aria-hidden="true">*</span></label>
+      <input class="form-control{{ ' is-invalid' if errors.title }}" id="t-title" name="title" value="{{ task.title or '' }}" required autofocus
+             {% if errors.title %}aria-invalid="true" aria-describedby="t-title-err"{% endif %}>
+      {% if errors.title %}<div class="invalid-feedback" id="t-title-err" role="alert">{{ errors.title }}</div>{% endif %}
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-sm-4">
+        <label class="form-label" for="t-status">Status</label>
+        <select class="form-select" id="t-status" name="status">
+          {% for k, v in [('todo','To do'),('doing','Doing'),('done','Done')] %}<option value="{{ k }}" {{ 'selected' if task.status == k }}>{{ v }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label" for="t-prio">Priority</label>
+        <select class="form-select" id="t-prio" name="priority">
+          {% for k, v in [(1,'1 · High'),(2,'2 · Normal'),(3,'3 · Low')] %}<option value="{{ k }}" {{ 'selected' if (task.priority or 2) == k }}>{{ v }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label" for="t-due">Due date</label>
+        <input class="form-control" type="date" id="t-due" name="due_date" value="{{ task.due_date or '' }}">
+      </div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-sm-4">
+        <label class="form-label" for="t-ms">Milestone</label>
+        <select class="form-select" id="t-ms" name="milestone_id">
+          <option value="">None</option>
+          {% for m in milestones %}<option value="{{ m.id }}" {{ 'selected' if task.milestone_id == m.id }}>{{ m.title }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label" for="t-ch">Thesis chapter</label>
+        <select class="form-select" id="t-ch" name="chapter_id">
+          <option value="">None</option>
+          {% for c in chapters %}<option value="{{ c.id }}" {{ 'selected' if task.chapter_id == c.id }}>{{ c.ordinal }}. {{ c.title }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label" for="t-tags">Tags</label>
+        <input class="form-control" id="t-tags" name="tags" value="{{ tags }}" placeholder="data, chapter3" aria-describedby="t-tags-hint">
+        <div class="form-text" id="t-tags-hint">Comma-separated.</div>
+      </div>
+    </div>
+    <div>
+      <label class="form-label" for="t-desc">Notes</label>
+      <textarea class="form-control" id="t-desc" name="description" rows="3">{{ task.description or '' }}</textarea>
+    </div>
+  </div>
+  <div class="modal-footer">
+    {% if task.id %}
+    <button class="btn btn-link text-danger me-auto px-0" type="button"
+            onclick="const f=document.getElementById('del-task-{{ task.id }}'); bootstrap.Modal.getInstance('#form-modal').hide(); f.requestSubmit();">
+      <i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+    {% endif %}
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-primary">Save task</button>
+  </div>
+</form>
+{% if task.id %}
+<form id="del-task-{{ task.id }}" method="post" action="{{ url_for('tasks.delete', task_id=task.id) }}" data-confirm="Delete “{{ task.title }}”? This cannot be undone." class="d-none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}

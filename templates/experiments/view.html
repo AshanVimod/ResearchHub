@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ exp.run_name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('experiments.index') }}">Experiments</a></li>
+  <li class="breadcrumb-item active" aria-current="page">{{ exp.run_name }}</li></ol></nav>
+<div class="page-head">
+  <div>
+    <div class="eyebrow mb-1">{{ approaches.get(exp.approach, exp.approach) }}{% if exp.model %} · {{ exp.model }}{% endif %} · {{ exp.run_at.replace('T', ' ')[:16] }}</div>
+    <h1 class="page-title d-flex align-items-center gap-2">{{ exp.run_name }} {% include "experiments/_star.html" %}</h1>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('experiments.edit', exp_id=exp.id) }}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</a>
+</div>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <section class="panel mb-3" aria-labelledby="m-h"><div class="panel-body">
+      <h2 class="eyebrow mb-3" id="m-h">Metrics</h2>
+      <div class="metric-grid">
+        {% for k, v in metrics.items() %}<div><div class="small text-ink-2">{{ labels.get(k, k) }}</div><div class="stat num" style="font-size:1.7rem">{{ v }}</div></div>
+        {% else %}<p class="text-ink-2 small mb-0">No metrics recorded.</p>{% endfor %}
+      </div>
+    </div></section>
+    <section class="panel mb-3" aria-labelledby="n-h"><div class="panel-body">
+      <h2 class="eyebrow mb-2" id="n-h">Notes</h2>
+      {% if exp.notes %}<div class="prose">{{ exp.notes|md }}</div>{% else %}<p class="small text-ink-2 mb-0">No notes. <a href="{{ url_for('experiments.edit', exp_id=exp.id) }}">Add some</a>.</p>{% endif %}
+    </div></section>
+  </div>
+  <div class="col-lg-6">
+    <section class="panel mb-3" aria-labelledby="p-h"><div class="panel-body">
+      <h2 class="eyebrow mb-2" id="p-h">Parameters</h2>
+      {% if params %}<dl class="meta-dl small mb-0" style="grid-template-columns: minmax(120px, auto) 1fr">
+        {% for k, v in params.items() %}<dt class="font-monospace">{{ k }}</dt><dd class="num">{{ v }}</dd>{% endfor %}</dl>
+      {% else %}<p class="small text-ink-2 mb-0">None recorded.</p>{% endif %}
+    </div></section>
+    <section class="panel mb-3" aria-labelledby="pv-h"><div class="panel-body">
+      <h2 class="eyebrow mb-2" id="pv-h">Provenance</h2>
+      <dl class="meta-dl small mb-0" style="grid-template-columns: 110px 1fr">
+        <dt>Data</dt><dd>{{ exp.data_version or '—' }}</dd>
+        <dt>Split</dt><dd>{{ exp.split_desc or '—' }}</dd>
+        <dt>Notebook</dt><dd class="text-break">{{ exp.notebook_path or '—' }}</dd>
+        <dt>Git commit</dt><dd class="font-monospace">{{ exp.git_commit or '—' }}</dd>
+      </dl>
+    </div></section>
+    <form method="post" action="{{ url_for('experiments.delete', exp_id=exp.id) }}" data-confirm="Delete run “{{ exp.run_name }}”?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-link text-danger px-0" type="submit"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete run</button></form>
+  </div>
+</div>
+{% endblock %}

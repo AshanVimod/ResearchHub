@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ 'Welcome to Research Hub' if setup else 'Settings' }}</h1>
+    <p class="page-sub">{{ 'Set the project start date to begin. Everything else can be changed later.' if setup else 'Stored in the local database. Nothing leaves this laptop.' }}</p>
+  </div>
+</div>
+
+{% if errors %}
+<div class="rh-alert danger mb-3" role="alert" tabindex="-1" id="error-summary">
+  <i class="bi bi-exclamation-octagon" aria-hidden="true"></i>
+  <span class="msg">Please fix: {% for k, v in errors.items() %}<a href="#{{ k }}">{{ v }}</a>{{ '; ' if not loop.last }}{% endfor %}</span>
+</div>
+<script>document.getElementById("error-summary").focus();</script>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-xl-7">
+    <form method="post" action="{{ url_for('settings.save') }}" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% for group, fields in form %}
+      <fieldset class="panel mb-3">
+        <div class="panel-body">
+          <legend class="h6 mb-3">{{ group }}</legend>
+          <div class="row g-3">
+          {% for key, label, kind, help in fields %}
+            <div class="{{ 'col-12' if kind in ('textarea',) or key == 'project_title' or key == 'thesis_docx_path' or key == 'backup_dir' else 'col-sm-6' }}">
+              {% if kind == 'bool' %}
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" role="switch" id="{{ key }}" name="{{ key }}" value="true" {{ 'checked' if values[key] == 'true' }}>
+                  <label class="form-check-label" for="{{ key }}">{{ label }}</label>
+                </div>
+              {% else %}
+                <label class="form-label" for="{{ key }}">{{ label }}{% if key == 'project_start_date' %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}</label>
+                {% if kind == 'textarea' %}
+                  <textarea class="form-control font-monospace small" id="{{ key }}" name="{{ key }}" rows="3"{% if help %} aria-describedby="{{ key }}-help"{% endif %}>{{ values[key] }}</textarea>
+                {% else %}
+                  <input class="form-control{{ ' is-invalid' if errors.get(key) }}" type="{{ kind }}" id="{{ key }}" name="{{ key }}" value="{{ values[key] }}"
+                         {% if kind == 'number' %}min="0" inputmode="numeric"{% endif %} {% if key == 'project_start_date' %}required{% endif %}
+                         {% if help or errors.get(key) %}aria-describedby="{{ key }}-help"{% endif %}{% if key == 'project_start_date' and setup %} autofocus{% endif %}>
+                {% endif %}
+              {% endif %}
+              {% if errors.get(key) %}<div class="invalid-feedback d-block" id="{{ key }}-help">{{ errors[key] }}</div>
+              {% elif help %}<div class="form-text" id="{{ key }}-help">{{ help }}</div>{% endif %}
+            </div>
+          {% endfor %}
+          </div>
+        </div>
+      </fieldset>
+      {% endfor %}
+      <div class="d-flex gap-2 mb-4"><button class="btn btn-primary" type="submit">{{ 'Start' if setup else 'Save settings' }}</button></div>
+    </form>
+  </div>
+
+  {% if not setup %}
+  <div class="col-xl-5">
+    <section class="panel mb-3" id="milestones" aria-labelledby="ms-title">
+      <div class="panel-head"><h2 class="panel-title" id="ms-title"><i class="bi bi-flag" aria-hidden="true"></i>Milestones</h2></div>
+      <div class="panel-body">
+        <p class="small text-ink-2">Dates follow the start date. Change a date when the coordinator announces the real one; it then stays fixed.</p>
+        {% for m in milestones %}
+        <form class="py-2 border-bottom" method="post" action="{{ url_for('settings.milestone', mid=m.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="d-flex justify-content-between gap-2 mb-1">
+            <span class="small fw-semibold">{{ m.title }}</span>
+            <span class="small text-ink-2 text-nowrap">W{{ m.start_week }}{% if m.end_week != m.start_week %}–{{ m.end_week }}{% endif %}{% if m.marks_weight %} · {{ m.marks_weight|int }}{{ '' if m.code == 'IEEE_PAPER' else '%' }}{% endif %}</span>
+          </div>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <label class="visually-hidden" for="ms-d-{{ m.id }}">Due date for {{ m.title }}</label>
+            <input class="form-control form-control-sm w-auto" type="date" id="ms-d-{{ m.id }}" name="due_date" value="{{ m.due_date or '' }}">
+            <label class="visually-hidden" for="ms-s-{{ m.id }}">Status of {{ m.title }}</label>
+            <select class="form-select form-select-sm w-auto" id="ms-s-{{ m.id }}" name="status">
+              {% for k, v in [('upcoming','Upcoming'),('in_progress','In progress'),('done','Done')] %}<option value="{{ k }}" {{ 'selected' if m.status == k }}>{{ v }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Save</button>
+            {% if m.date_overridden %}
+              <span class="chip accent" title="Fixed date; ignores the start date">Overridden</span>
+              <button class="btn btn-sm btn-link px-0" type="submit" name="reset" value="1">Reset</button>
+            {% endif %}
+          </div>
+        </form>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel" id="backup" aria-labelledby="bk-title">
+      <div class="panel-head"><h2 class="panel-title" id="bk-title"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Backup</h2></div>
+      <div class="panel-body">
+        <p class="small text-ink-2 mb-2">Zips the database and the reference library into <code class="text-break">{{ backup_dir }}</code>. A backup also runs on start-up when the last one is over 24 hours old.</p>
+        <form method="post" action="{{ url_for('settings.make_backup') }}" class="mb-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-primary" type="submit"><i class="bi bi-cloud-arrow-up me-1" aria-hidden="true"></i>Back up now</button>
+        </form>
+        {% if backups %}
+        <ul class="list-clean small">
+          {% for b in backups %}<li class="row-item"><span class="text-truncate" title="{{ b.path }}">{{ b.path.replace('\\', '/').split('/')[-1] }}</span><span class="meta num">{{ (b.size_bytes / 1024)|round(1) }} KB · {{ b.made_at.replace('T', ' ')[:16] }}</span></li>{% endfor %}
+        </ul>
+        {% else %}<p class="small text-ink-2 mb-0">No backups yet.</p>{% endif %}
+        <p class="small text-ink-2 mt-3 mb-0"><strong>Restore:</strong> stop the app, unzip a backup over the <code>data/</code> folder, start again.</p>
+      </div>
+    </section>
+
+    {% if data %}
+    <section class="panel mt-3" id="data" aria-labelledby="data-title">
+      <div class="panel-head"><h2 class="panel-title" id="data-title"><i class="bi bi-database" aria-hidden="true"></i>Your data</h2></div>
+      <div class="panel-body">
+        <p class="small mb-3">Everything is saved the moment you press Save, tick a box or drop a card. There is no separate “save” step. It all stays on this laptop, in:</p>
+        <ul class="list-clean small mb-3">
+          {% for p in data.places %}
+          <li class="row-item align-items-start">
+            <div class="min-w-0"><div class="fw-semibold">{{ p.label }}</div><code class="text-break small">{{ p.path }}</code></div>
+            <span class="meta num">{{ p.size|filesize }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        <dl class="data-counts small mb-3">
+          {% for label, n in data.counts %}<div><dt>{{ label }}</dt><dd class="num">{{ n }}</dd></div>{% endfor %}
+        </dl>
+        <div class="d-flex flex-wrap gap-2">
+          <form method="post" action="{{ url_for('settings.open_data') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-folder2-open me-1" aria-hidden="true"></i>Open data folder</button></form>
+          {% if data.can_quit %}
+          <form method="post" action="{{ url_for('settings.quit_app') }}" data-confirm="Stop Research Hub? Everything is already saved. Open it again any time with the shortcut." data-confirm-label="Quit">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-power me-1" aria-hidden="true"></i>Quit Research Hub</button></form>
+          {% endif %}
+        </div>
+        <p class="small text-ink-2 mt-3 mb-0">To browse the raw tables, open <code>research.db</code> with the free <strong>DB Browser for SQLite</strong> (sqlitebrowser.org), preferably in read-only mode. Only the theme and a few view choices are kept in the browser itself.</p>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="panel mt-3" id="about" aria-labelledby="about-title">
+      <div class="panel-head"><h2 class="panel-title" id="about-title"><i class="bi bi-info-circle" aria-hidden="true"></i>About</h2></div>
+      <div class="panel-body small">
+        <p class="mb-2"><strong>Research Hub</strong> · © {{ AUTHOR.year }} {{ AUTHOR.name }}. Free to use, copy and modify under the MIT License; please keep this credit.</p>
+        <ul class="list-clean mb-3">
+          <li class="row-item"><span><i class="bi bi-whatsapp me-1" aria-hidden="true"></i>WhatsApp</span><a class="meta" href="{{ AUTHOR.whatsapp_link }}" target="_blank" rel="noopener">{{ AUTHOR.whatsapp }}</a></li>
+          <li class="row-item"><span><i class="bi bi-envelope me-1" aria-hidden="true"></i>Gmail</span><a class="meta" href="mailto:{{ AUTHOR.email }}">{{ AUTHOR.email }}</a></li>
+        </ul>
+        <p class="mb-0 fst-italic text-ink-2">{{ AUTHOR.wish }}</p>
+      </div>
+    </section>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

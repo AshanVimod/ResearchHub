@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}{% endblock %}{% if self.title() %} · {% endif %}Research Hub</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("rh-theme");
+        if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-bs-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23a16207'/%3E%3Ctext x='16' y='23' font-family='Georgia' font-size='20' font-weight='600' text-anchor='middle' fill='white'%3ER%3C/text%3E%3C/svg%3E">
+  {% block head %}{% endblock %}
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token() }}"}'>
+<a class="skip-link" href="#main">Skip to main content</a>
+{% set ep = request.endpoint or '' %}
+{% macro side(endpoint, icon, label, later=None, count=None, match=None, exclude=None) -%}
+  {%- set active = ((match and ep.startswith(match)) or ep == endpoint) and not (exclude and ep in exclude) -%}
+  <a class="side-link{% if active %} active{% endif %}" href="{{ url_for(endpoint) }}"{% if active %} aria-current="page"{% endif %}>
+    <i class="bi bi-{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span>
+    {%- if count %}<span class="count" aria-label="{{ count }} unprocessed">{{ count }}</span>{% endif -%}
+    {%- if later %}<span class="later" title="Arrives in Phase {{ later }}">P{{ later }}</span>{% endif -%}
+  </a>
+{%- endmacro %}
+<div class="app">
+  <nav class="sidebar" id="sidebar" aria-label="Main">
+    <a class="brand" href="{{ url_for('dashboard.index') }}">
+      <span class="brand-mark" aria-hidden="true">R</span><span class="brand-name">Research Hub</span>
+    </a>
+    <div class="nav-group">Overview</div>
+    {{ side('dashboard.index', 'grid-1x2', 'Dashboard') }}
+    {{ side('dashboard.calendar', 'calendar3', 'Calendar') }}
+    <div class="nav-group">Supervision</div>
+    {{ side('diary.index', 'journal-text', 'Diary', match='diary.') }}
+    {{ side('tasks.index', 'kanban', 'Tasks', match='tasks.') }}
+    {{ side('time.index', 'stopwatch', 'Time', match='time.') }}
+    <div class="nav-group">Literature</div>
+    {{ side('refs.index', 'journal-bookmark', 'References', match='refs.', exclude=['refs.matrix', 'refs.cell_edit', 'refs.cell_save', 'refs.cell_view']) }}
+    {{ side('refs.matrix', 'table', 'Matrix') }}
+    {{ side('files.index', 'folder2-open', 'Files', match='files.') }}
+    {{ side('search.index', 'search', 'Search', match='search.') }}
+    <div class="nav-group">Writing &amp; research</div>
+    {{ side('thesis.index', 'file-earmark-text', 'Thesis', match='thesis.') }}
+    {{ side('labels.index', 'tags', 'Labels', match='labels.') }}
+    {{ side('experiments.index', 'clipboard-data', 'Experiments', match='experiments.') }}
+    {{ side('viva.index', 'easel', 'Viva', match='viva.') }}
+    <div class="nav-group">You</div>
+    {{ side('inbox.index', 'inbox', 'Inbox', match='inbox.') }}
+    {{ side('settings.index', 'gear', 'Settings', match='settings.') }}
+    <div class="sidebar-foot">
+      {% if S.student_name %}<div class="text-truncate" title="{{ S.project_title }}">{{ S.student_name }}{% if S.reg_no %} · {{ S.reg_no }}{% endif %}</div>{% endif %}
+      <div>Local only · 127.0.0.1</div>
+      <a class="sidebar-credit" href="{{ url_for('settings.index') }}#about">© {{ AUTHOR.year }} {{ AUTHOR.name }}</a>
+    </div>
+  </nav>
+
+  <div class="d-flex flex-column min-vh-100">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <button class="btn btn-ghost btn-icon menu-btn" type="button" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false" data-menu>
+          <i class="bi bi-list fs-5" aria-hidden="true"></i>
+        </button>
+        <form class="search" action="{{ url_for('search.index') }}" method="get" role="search">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <label class="visually-hidden" for="global-search">Search</label>
+          <input class="form-control" id="global-search" name="q" type="search" placeholder="Search everything" autocomplete="off">
+          <span class="kbd" aria-hidden="true">/</span>
+        </form>
+
+        <form class="d-flex flex-grow-1 gap-2 hide-sm" style="max-width:380px" x-data="capture()" @submit.prevent="save" aria-label="Quick capture">
+          <label class="visually-hidden" for="quick-capture">Quick capture to inbox</label>
+          <input class="form-control" id="quick-capture" x-ref="input" x-model="text" placeholder="Capture an idea… (Alt+N)" autocomplete="off">
+          <button class="btn btn-outline-secondary" type="submit" :disabled="busy || !text.trim()" aria-label="Save to inbox">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+          </button>
+        </form>
+
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="timer" :class="{ running: running }" x-data="timerWidget()" role="group" aria-label="Time tracker">
+            <template x-if="running"><span class="pulse" aria-hidden="true"></span></template>
+            <span class="clock" x-text="display" aria-live="off">0:00</span>
+            <label class="visually-hidden" for="timer-cat">Timer category</label>
+            <select class="form-select form-select-sm" id="timer-cat" x-model="category" :disabled="running">
+              {% for c in TIME_CATEGORIES %}<option value="{{ c }}">{{ c|capitalize }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-sm" :class="running ? 'btn-accent' : 'btn-primary'" type="button" @click="toggle()" :disabled="busy"
+                    :aria-label="running ? 'Stop timer (Alt+T)' : 'Start timer (Alt+T)'" title="Alt+T">
+              <i class="bi" :class="running ? 'bi-stop-fill' : 'bi-play-fill'" aria-hidden="true"></i>
+            </button>
+            <template x-if="stale">
+              <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="stale-title" style="background:rgba(0,0,0,.45)">
+                <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+                  <div class="modal-header"><h2 class="modal-title" id="stale-title">Timer still running</h2></div>
+                  <div class="modal-body">
+                    <p>A <strong x-text="category"></strong> timer has been running since <strong x-text="startedLabel"></strong>, more than 12 hours. When did you actually stop?</p>
+                    <label class="form-label" for="stale-end">End time</label>
+                    <input class="form-control" type="datetime-local" id="stale-end" x-model="staleEnd">
+                  </div>
+                  <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" @click="stale = false">Keep running</button>
+                    <button class="btn btn-primary" type="button" @click="stopAt()">Stop at this time</button>
+                  </div>
+                </div></div>
+              </div>
+            </template>
+          </div>
+          <button class="btn btn-ghost btn-icon hide-sm" type="button" data-bs-toggle="modal" data-bs-target="#keys-modal" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">
+            <i class="bi bi-keyboard" aria-hidden="true"></i>
+          </button>
+          <button class="btn btn-ghost btn-icon" type="button" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
+            <i class="bi bi-moon-stars" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="content" id="main" tabindex="-1">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<div class="toast-zone" id="toasts" aria-live="polite" aria-atomic="false">
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+  <div class="toast show align-items-center" role="status" data-autohide>
+    <div class="d-flex">
+      <div class="toast-body d-flex gap-2 align-items-start">
+        <i class="bi {{ {'success':'bi-check-circle text-success','danger':'bi-exclamation-octagon text-danger','warning':'bi-exclamation-triangle text-warning'}.get(category, 'bi-info-circle text-ink-2') }}" aria-hidden="true"></i>
+        <span>{{ message }}</span>
+      </div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Dismiss"></button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="modal fade" id="confirm-modal" tabindex="-1" aria-labelledby="confirm-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h2 class="modal-title" id="confirm-title">Are you sure?</h2>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+    <div class="modal-body" id="confirm-text"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirm-go">Delete</button>
+    </div>
+  </div></div>
+</div>
+
+<div class="modal fade" id="keys-modal" tabindex="-1" aria-labelledby="keys-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h2 class="modal-title" id="keys-title">Keyboard shortcuts</h2>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+    <div class="modal-body"><dl class="keys-dl mb-0">
+      <dt><span class="kbd">/</span></dt><dd>Focus the search box</dd>
+      <dt><span class="kbd">Alt</span> + <span class="kbd">N</span></dt><dd>Quick capture an idea to the inbox</dd>
+      <dt><span class="kbd">Alt</span> + <span class="kbd">T</span></dt><dd>Start or stop the time tracker</dd>
+      <dt><span class="kbd">Enter</span></dt><dd>Edit the focused task card; save a matrix cell</dd>
+      <dt><span class="kbd">Esc</span></dt><dd>Close a dialog; cancel a matrix cell edit</dd>
+      <dt><span class="kbd">Space</span></dt><dd>Reveal the answer in viva drill</dd>
+      <dt><span class="kbd">?</span></dt><dd>Show this list</dd>
+    </dl></div>
+  </div></div>
+</div>
+
+<div class="modal fade" id="form-modal" tabindex="-1" aria-labelledby="form-modal-title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content" id="form-modal-content"></div></div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/htmx/htmx.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+<script defer src="{{ url_for('static', filename='vendor/alpine/alpine.min.js') }}"></script>
+</body>
+</html>

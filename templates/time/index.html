@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Time{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Time log</h1>
+    <p class="page-sub">The guideline asks for at least {{ summary.target }} hours. Use the timer at the top, or log time here.</p>
+  </div>
+</div>
+
+<div class="strip mb-3" style="grid-template-columns: repeat(4, minmax(0,1fr))">
+  <div><div class="eyebrow mb-1">Total</div><div class="stat num">{{ summary.hours }} <small>h</small></div><div class="small text-ink-2 mt-1">{{ summary.pct }}% of {{ summary.target }} h</div></div>
+  <div><div class="eyebrow mb-1">This week</div><div class="stat num">{{ summary.this_week }} <small>h</small></div><div class="small text-ink-2 mt-1">Since Monday</div></div>
+  <div><div class="eyebrow mb-1">Expected by week {{ summary.current_week }}</div><div class="stat num">{{ summary.expected }} <small>h</small></div><div class="small text-ink-2 mt-1">{{ summary.target }} × {{ summary.current_week }} / 34</div></div>
+  <div><div class="eyebrow mb-1">Pace</div>
+    {% if summary.ahead >= 0 %}<div class="stat num" style="color:var(--rh-success)">+{{ summary.ahead|round(1) }} <small>h ahead</small></div>
+    {% else %}<div class="stat num" style="color:var(--rh-danger)">{{ summary.ahead|round(1) }} <small>h behind</small></div>{% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <section class="col-lg-4" aria-labelledby="log-title">
+    <div class="panel h-100"><div class="panel-body">
+      <h2 class="h6 mb-3" id="log-title">{{ 'Edit entry' if editing else 'Log time manually' }}</h2>
+      <form method="post" action="{{ url_for('time.save') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if editing %}<input type="hidden" name="entry_id" value="{{ editing.id }}">{% endif %}
+        <div class="mb-3">
+          <label class="form-label" for="day">Date</label>
+          <input class="form-control" type="date" id="day" name="day" value="{{ editing.started_at[:10] if editing else today.isoformat() }}" max="{{ today.isoformat() }}" required>
+        </div>
+        <fieldset class="mb-3">
+          <legend class="form-label">Time spent</legend>
+          <div class="row g-2">
+            <div class="col-6"><div class="input-group">
+              <input class="form-control" type="number" id="hours" name="hours" min="0" max="24" step="0.25" inputmode="decimal" value="{{ (editing.minutes // 60) if editing else '' }}" aria-label="Hours">
+              <span class="input-group-text">h</span></div></div>
+            <div class="col-6"><div class="input-group">
+              <input class="form-control" type="number" id="minutes" name="minutes" min="0" max="59" inputmode="numeric" value="{{ (editing.minutes % 60) if editing else '' }}" aria-label="Minutes">
+              <span class="input-group-text">min</span></div></div>
+          </div>
+        </fieldset>
+        <div class="mb-3">
+          <label class="form-label" for="category">Category</label>
+          <select class="form-select" id="category" name="category" required>
+            {% for c in TIME_CATEGORIES %}<option value="{{ c }}" {{ 'selected' if editing and editing.category == c }}>{{ c|capitalize }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="task_id">Task <span class="text-ink-2 fw-normal">(optional)</span></label>
+          <select class="form-select" id="task_id" name="task_id">
+            <option value="">None</option>
+            {% for t in open_tasks %}<option value="{{ t.id }}" {{ 'selected' if editing and editing.task_id == t.id }}>{{ t.title }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="note">Note</label>
+          <input class="form-control" id="note" name="note" value="{{ editing.note or '' if editing else '' }}" placeholder="What did you work on?">
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary flex-grow-1" type="submit">{{ 'Save changes' if editing else 'Log time' }}</button>
+          {% if editing %}<a class="btn btn-outline-secondary" href="{{ url_for('time.index') }}">Cancel</a>{% endif %}
+        </div>
+      </form>
+    </div></div>
+  </section>
+
+  <section class="col-lg-8" aria-labelledby="cat-title">
+    <div class="panel h-100"><div class="panel-body">
+      <h2 class="h6 mb-3" id="cat-title">Hours by category</h2>
+      {% set maxc = (summary.per_category.values()|max) or 1 %}
+      <ul class="list-clean">
+        {% for c, h in summary.per_category.items() %}
+        <li class="d-grid align-items-center gap-2 py-1" style="grid-template-columns: 110px 1fr 60px">
+          <span class="small"><span class="legend-dot" style="background:var(--cat-{{ c }})"></span>{{ c|capitalize }}</span>
+          <span style="height:12px;background:var(--rh-surface-2);border-radius:3px;overflow:hidden" role="img" aria-label="{{ c }}: {{ h }} hours">
+            <span style="display:block;height:100%;width:{{ (h / maxc * 100)|round(1) }}%;background:var(--cat-{{ c }})"></span></span>
+          <span class="small num text-end fw-semibold">{{ h }} h</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% if summary.hours > 0 %}
+      <h2 class="h6 mt-4 mb-2">Hours per week</h2>
+      <div style="position:relative;height:200px"><canvas id="week-chart" role="img" aria-label="Hours per project week, stacked by category"></canvas></div>
+      {% endif %}
+    </div></div>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="entries-title">
+  <div class="panel-head">
+    <h2 class="panel-title" id="entries-title">Entries</h2>
+    <form method="get" class="d-flex gap-2">
+      <label class="visually-hidden" for="f-cat">Category</label>
+      <select class="form-select form-select-sm" id="f-cat" name="category" onchange="this.form.submit()">
+        <option value="">All categories</option>
+        {% for c in TIME_CATEGORIES %}<option value="{{ c }}" {{ 'selected' if f_cat == c }}>{{ c|capitalize }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="table-responsive mt-2">
+    <table class="table">
+      <thead><tr><th scope="col">Date</th><th scope="col">Category</th><th scope="col" class="text-end">Time</th><th scope="col">Note / task</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+      {% for e in entries %}
+        <tr>
+          <td class="num text-nowrap">{{ e.started_at|nice_date }}</td>
+          <td><span class="legend-dot" style="background:var(--cat-{{ e.category }})"></span>{{ e.category|capitalize }}</td>
+          <td class="num text-end fw-semibold">{{ e.minutes|hours }}</td>
+          <td class="small">{{ e.note or '' }}{% if e.task_title %}<span class="chip ms-1">{{ e.task_title }}</span>{% endif %}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-ghost" href="{{ url_for('time.index', edit=e.id) }}" aria-label="Edit entry of {{ e.started_at|nice_date }}"><i class="bi bi-pencil" aria-hidden="true"></i></a>
+            <form class="d-inline" method="post" action="{{ url_for('time.delete', entry_id=e.id) }}" data-confirm="Delete {{ e.minutes|hours }} of {{ e.category }} on {{ e.started_at|nice_date }}?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-ghost" type="submit" aria-label="Delete entry"><i class="bi bi-trash" aria-hidden="true"></i></button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5"><div class="empty"><i class="bi bi-hourglass" aria-hidden="true"></i><h3>No time logged yet</h3><p>Start the timer in the top bar (Alt+T) or log your first session with the form above.</p></div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+{% if summary.hours > 0 %}
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.js') }}"></script>
+<script>
+(function () {
+  const data = {{ chart|tojson }};
+  let chart;
+  function draw() {
+    if (chart) chart.destroy();
+    const ink2 = rhToken("--rh-ink-2");
+    chart = new Chart(document.getElementById("week-chart"), {
+      data: { labels: data.labels, datasets: [
+        { type: "line", label: "Pace", data: data.labels.map(() => data.pace), borderColor: rhToken("--rh-accent"), borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0 },
+        ...data.datasets.map((d) => ({ type: "bar", label: d.label, data: d.data, backgroundColor: rhToken("--cat-" + d.label), stack: "h", borderRadius: 2, maxBarThickness: 22 }))
+      ] },
+      options: { maintainAspectRatio: false, animation: matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 300 },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y} h` } } },
+        scales: { x: { stacked: true, grid: { display: false }, ticks: { color: ink2, maxRotation: 0 } },
+                  y: { stacked: true, grid: { color: rhToken("--rh-line") }, ticks: { color: ink2 } } } }
+    });
+  }
+  draw();
+  document.addEventListener("rh:theme", draw);
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,68 @@
+{% macro err(name) %}{% if errors.get(name) %}<div class="invalid-feedback d-block" id="lf-{{ name }}-err" role="alert">{{ errors[name] }}</div>{% endif %}{% endmacro %}
+<form hx-post="{{ url_for('labels.update', label_id=label.id) if label.id else url_for('labels.create') }}" hx-target="#form-modal-content" hx-swap="innerHTML" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="modal-header">
+    <h2 class="modal-title" id="form-modal-title">{{ 'Edit label row' if label.id else 'New label row' }}</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  </div>
+  <div class="modal-body">
+    <div class="row g-3">
+      <div class="col-sm-6">
+        <label class="form-label" for="lf-entity">Entity <span class="text-danger" aria-hidden="true">*</span></label>
+        <input class="form-control{{ ' is-invalid' if errors.entity }}" id="lf-entity" name="entity" value="{{ label.entity or '' }}" list="lf-entities" required autofocus
+               {% if errors.entity %}aria-invalid="true" aria-describedby="lf-entity-err"{% endif %}>
+        <datalist id="lf-entities">{% for c in entities %}<option value="{{ c }}">{% endfor %}</datalist>{{ err('entity') }}
+      </div>
+      <div class="col-6 col-sm-3"><label class="form-label" for="lf-entity_code">Code</label>
+        <input class="form-control" id="lf-entity_code" name="entity_code" value="{{ label.entity_code or '' }}" placeholder="ID-042"></div>
+      <div class="col-6 col-sm-3"><label class="form-label" for="lf-entity_group">Group</label>
+        <input class="form-control" id="lf-entity_group" name="entity_group" value="{{ label.entity_group or '' }}" list="lf-entity_groups">
+        <datalist id="lf-entity_groups">{% for s in entity_groups %}<option value="{{ s }}">{% endfor %}</datalist></div>
+      <div class="col-6 col-sm-3"><label class="form-label" for="lf-period">Period <span class="text-danger" aria-hidden="true">*</span></label>
+        <input class="form-control{{ ' is-invalid' if errors.period }}" id="lf-period" name="period" value="{{ label.period or '' }}" placeholder="2024" required
+               {% if errors.period %}aria-invalid="true" aria-describedby="lf-period-err"{% endif %}>{{ err('period') }}</div>
+      <div class="col-6 col-sm-4"><label class="form-label" for="lf-source">Source</label>
+        <select class="form-select" id="lf-source" name="source">{% for k, v in sources.items() %}<option value="{{ k }}" {{ 'selected' if label.source == k }}>{{ v }}</option>{% endfor %}</select>{{ err('source') }}</div>
+      <div class="col-6 col-sm-2">
+        <fieldset><legend class="form-label">Label</legend>
+          <div class="btn-group w-100" role="group">
+            <input type="radio" class="btn-check" name="label" id="lf-l1" value="1" {{ 'checked' if label.label|string == '1' }}><label class="btn btn-outline-secondary" for="lf-l1">1</label>
+            <input type="radio" class="btn-check" name="label" id="lf-l0" value="0" {{ 'checked' if label.label|string == '0' }}><label class="btn btn-outline-secondary" for="lf-l0">0</label>
+          </div></fieldset>
+      </div>
+      <div class="col-6 col-sm-3"><label class="form-label" for="lf-event_date">Event date</label>
+        <input class="form-control" type="date" id="lf-event_date" name="event_date" value="{{ label.event_date or '' }}"></div>
+      <div class="col-sm-5"><label class="form-label" for="lf-evidence_strength">Evidence strength</label>
+        <select class="form-select" id="lf-evidence_strength" name="evidence_strength">{% for k, v in strengths.items() %}<option value="{{ k }}" {{ 'selected' if (label.evidence_strength or '') == k }}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-sm-4"><label class="form-label" for="lf-rule_version">Rules version</label>
+        <input class="form-control" id="lf-rule_version" name="rule_version" value="{{ label.rule_version or (rules.version if rules else '') }}"></div>
+      <div class="col-sm-6"><label class="form-label" for="lf-evidence_url">Evidence URL</label>
+        <input class="form-control" type="url" inputmode="url" id="lf-evidence_url" name="evidence_url" value="{{ label.evidence_url or '' }}" placeholder="https://..."></div>
+      <div class="col-sm-6"><label class="form-label" for="lf-evidence_file_id">Evidence file</label>
+        <select class="form-select" id="lf-evidence_file_id" name="evidence_file_id"><option value="">None</option>
+          {% for p in pdfs %}<option value="{{ p.id }}" {{ 'selected' if label.evidence_file_id|string == p.id|string }}>{{ p.rel_path }}</option>{% endfor %}</select></div>
+      <div class="col-12 d-flex flex-wrap gap-4">
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="lf-doubtful" name="doubtful" value="1" {{ 'checked' if label.doubtful|string == '1' }}>
+          <label class="form-check-label" for="lf-doubtful">Doubtful</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="lf-rev" name="reviewed_with_supervisor" value="1" {{ 'checked' if label.reviewed_with_supervisor|string == '1' }}>
+          <label class="form-check-label" for="lf-rev">Reviewed with supervisor</label></div>
+      </div>
+      <div class="col-12"><label class="form-label" for="lf-notes">Notes</label>
+        <textarea class="form-control" id="lf-notes" name="notes" rows="2">{{ label.notes or '' }}</textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    {% if label.id %}
+    <button class="btn btn-link text-danger me-auto px-0" type="button"
+            onclick="const f=document.getElementById('del-label-{{ label.id }}'); bootstrap.Modal.getInstance('#form-modal').hide(); f.requestSubmit();">
+      <i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+    {% endif %}
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </div>
+</form>
+{% if label.id %}
+<form id="del-label-{{ label.id }}" method="post" action="{{ url_for('labels.delete', label_id=label.id) }}" data-confirm="Delete this label row for {{ label.entity }} {{ label.period }}?" class="d-none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}

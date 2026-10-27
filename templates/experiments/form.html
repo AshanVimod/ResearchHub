@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit run' if exp.id else 'Add run' }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('experiments.index') }}">Experiments</a></li>
+  <li class="breadcrumb-item active" aria-current="page">{{ 'Edit' if exp.id else 'Add run' }}</li></ol></nav>
+<div class="page-head"><h1 class="page-title">{{ 'Edit run' if exp.id else 'Add a run by hand' }}</h1></div>
+{% if error %}<div class="rh-alert danger mb-3" role="alert" tabindex="-1" id="error-summary"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i><span class="msg">{{ error }}</span></div>
+<script>document.getElementById("error-summary").focus();</script>{% endif %}
+<form class="panel" method="post" action="{{ url_for('experiments.update', exp_id=exp.id) if exp.id else url_for('experiments.create') }}" novalidate>
+  <div class="panel-body"><div class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="starred" value="{{ exp.starred or '' }}">
+    <div class="col-md-6"><label class="form-label" for="x-name">Run name</label>
+      <input class="form-control" id="x-name" name="run_name" value="{{ exp.run_name or '' }}" placeholder="rf_baseline_v1" autofocus></div>
+    <div class="col-md-6"><label class="form-label" for="x-at">Run at</label>
+      <input class="form-control" type="datetime-local" step="1" id="x-at" name="run_at" value="{{ (exp.run_at or '')[:19] }}" aria-describedby="x-at-h">
+      <div class="form-text" id="x-at-h">Blank = now.</div></div>
+    <div class="col-md-4"><label class="form-label" for="x-ap">Approach</label>
+      <select class="form-select" id="x-ap" name="approach">{% for k, v in approaches.items() %}<option value="{{ k }}" {{ 'selected' if exp.approach == k }}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-md-4"><label class="form-label" for="x-model">Model</label><input class="form-control" id="x-model" name="model" value="{{ exp.model or '' }}" placeholder="XGBoost"></div>
+    <div class="col-md-4"><label class="form-label" for="x-dv">Data version</label><input class="form-control" id="x-dv" name="data_version" value="{{ exp.data_version or '' }}" placeholder="v1"></div>
+    <div class="col-md-6"><label class="form-label" for="x-split">Split</label><input class="form-control" id="x-split" name="split_desc" value="{{ exp.split_desc or '' }}" placeholder="5-fold cross-validation"></div>
+    <div class="col-md-6"><label class="form-label" for="x-nb">Notebook</label><input class="form-control" id="x-nb" name="notebook_path" value="{{ exp.notebook_path or '' }}"></div>
+    <div class="col-md-6"><label class="form-label" for="x-metrics">Metrics (JSON)</label>
+      <textarea class="form-control font-monospace small" id="x-metrics" name="metrics_json" rows="4" aria-describedby="x-m-h">{{ exp.metrics_json or '{}' }}</textarea>
+      <div class="form-text" id="x-m-h">e.g. {"pr_auc": 0.21, "roc_auc": 0.74, "top10_hits": 3}</div></div>
+    <div class="col-md-6"><label class="form-label" for="x-params">Parameters (JSON)</label>
+      <textarea class="form-control font-monospace small" id="x-params" name="params_json" rows="4">{{ exp.params_json or '{}' }}</textarea></div>
+    <div class="col-md-4"><label class="form-label" for="x-git">Git commit</label><input class="form-control font-monospace" id="x-git" name="git_commit" value="{{ exp.git_commit or '' }}"></div>
+    <div class="col-md-8"><label class="form-label" for="x-notes">Notes</label><textarea class="form-control" id="x-notes" name="notes" rows="2">{{ exp.notes or '' }}</textarea></div>
+    <div class="col-12 d-flex gap-2"><button class="btn btn-primary" type="submit">Save run</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('experiments.view', exp_id=exp.id) if exp.id else url_for('experiments.index') }}">Cancel</a></div>
+  </div></div>
+</form>
+{% endblock %}

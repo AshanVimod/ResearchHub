@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Diary{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Supervisor diary</h1>
+    <p class="page-sub">Reflective record of every meeting. At least {{ required }} signed meetings per semester.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-file-earmark-word me-1" aria-hidden="true"></i>Export
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="{{ url_for('diary.export_semester', semester=1) }}">Semester 1 (.docx)</a></li>
+        <li><a class="dropdown-item" href="{{ url_for('diary.export_semester', semester=2) }}">Semester 2 (.docx)</a></li>
+      </ul>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('diary.new') }}"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>New entry</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  {% for n in (1, 2) %}
+  {% set c = counts[n] %}
+  <div class="col-md-6">
+    <div class="panel"><div class="panel-body">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="eyebrow">Semester {{ n }}{% if current == n %} · current{% endif %}</div>
+          <div class="stat num my-1">{{ c.signed }} <small>/ {{ required }} signed</small></div>
+          <div class="small text-ink-2">{{ c.total }} recorded · {{ c.unsigned }} unsigned</div>
+        </div>
+        {% if c.signed >= required %}<span class="chip success"><i class="bi bi-check2" aria-hidden="true"></i>Requirement met</span>
+        {% elif current == n %}<span class="chip warning">{{ required - c.signed }} more needed</span>{% endif %}
+      </div>
+      <div class="meter mt-3" role="img" aria-label="{{ c.signed }} signed and {{ c.unsigned }} unsigned of {{ required }}">
+        {% for i in range([required, c.total]|max) %}<span class="{{ 'on' if i < c.signed else ('half' if i < c.total else '') }}"></span>{% endfor %}
+      </div>
+    </div></div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="panel">
+  <div class="panel-head flex-wrap">
+    <form class="d-flex flex-wrap gap-2 align-items-center" method="get" aria-label="Filter entries">
+      <label class="visually-hidden" for="f-sem">Semester</label>
+      <select class="form-select form-select-sm w-auto" id="f-sem" name="semester" onchange="this.form.submit()">
+        <option value="">All semesters</option>
+        <option value="1" {{ 'selected' if f_sem == 1 }}>Semester 1</option>
+        <option value="2" {{ 'selected' if f_sem == 2 }}>Semester 2</option>
+      </select>
+      <label class="visually-hidden" for="f-signed">Signature</label>
+      <select class="form-select form-select-sm w-auto" id="f-signed" name="signed" onchange="this.form.submit()">
+        <option value="">Signed and unsigned</option>
+        <option value="1" {{ 'selected' if f_signed == '1' }}>Signed only</option>
+        <option value="0" {{ 'selected' if f_signed == '0' }}>Unsigned only</option>
+      </select>
+      <noscript><button class="btn btn-sm btn-outline-secondary">Filter</button></noscript>
+    </form>
+    <span class="small text-ink-2">{{ entries|length }} entr{{ 'y' if entries|length == 1 else 'ies' }}</span>
+  </div>
+  <div class="mt-2">
+  {% for e in entries %}
+    {% set d = e.meeting_date %}
+    <article class="diary-card">
+      <a class="date-tile text-decoration-none text-body" href="{{ url_for('diary.view', entry_id=e.id) }}" aria-label="Open meeting of {{ d|nice_date }}">
+        <div class="my">{{ d|nice_date('%b') }}</div><div class="d num">{{ d|nice_date('%d') }}</div><div class="my">{{ d[:4] }}</div>
+      </a>
+      <div class="min-w-0">
+        <h2 class="h6 mb-1"><a class="text-body text-decoration-none" href="{{ url_for('diary.view', entry_id=e.id) }}">Meeting with {{ e.attendees or S.supervisor_name }}</a></h2>
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          {% if e.signed %}<span class="chip success"><i class="bi bi-pen" aria-hidden="true"></i>Signed {{ e.signed_date|nice_date('%d %b') }}</span>
+          {% else %}<span class="chip warning"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Unsigned</span>{% endif %}
+          {% if e.mode %}<span class="chip">{{ modes[e.mode] }}</span>{% endif %}
+          {% if e.semester %}<span class="chip">S{{ e.semester }}</span>{% endif %}
+          {% if actions.get(e.id) %}<span class="chip primary">{{ actions[e.id][0] }}/{{ actions[e.id][1] }} actions done</span>{% endif %}
+        </div>
+        {% if e.decisions or e.discussion %}<p class="small text-ink-2 mb-0" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ e.decisions or e.discussion }}</p>{% endif %}
+      </div>
+      <div class="d-flex gap-2 align-items-start">
+        {% if not e.signed %}
+        <form method="post" action="{{ url_for('diary.sign', entry_id=e.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+          <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-pen me-1" aria-hidden="true"></i>Mark signed</button>
+        </form>
+        {% endif %}
+        <a class="btn btn-sm btn-ghost" href="{{ url_for('diary.export_one', entry_id=e.id) }}" aria-label="Export meeting of {{ d|nice_date }} as Word"><i class="bi bi-download" aria-hidden="true"></i></a>
+      </div>
+    </article>
+  {% else %}
+    <div class="empty">
+      <i class="bi bi-journal-plus" aria-hidden="true"></i>
+      {% if f_sem or f_signed %}
+        <h3>No entries match</h3><p>Try a different filter.</p><a class="btn btn-outline-secondary" href="{{ url_for('diary.index') }}">Clear filters</a>
+      {% else %}
+        <h3>No meetings recorded yet</h3><p>The diary is worth 10% of the marks. Record each supervisor meeting right after it happens.</p>
+        <a class="btn btn-primary" href="{{ url_for('diary.new') }}">Add your first diary entry</a>
+      {% endif %}
+    </div>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}References{% endblock %}
+{% set status_chip = {'to_read': '', 'reading': 'accent', 'read': 'primary', 'cited': 'success', 'excluded': 'danger'} %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">References</h1>
+    <p class="page-sub">{{ total }} in the library{% if counts.cited %} · {{ counts.cited }} cited{% endif %}{% if counts.to_read %} · {{ counts.to_read }} to read{% endif %}</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('refs.new') }}"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add reference</a>
+</div>
+{% include "refs/_tabs.html" %}
+
+<form class="panel mb-3" method="get" aria-label="Filter references">
+  <div class="panel-body d-flex flex-wrap gap-2 align-items-end">
+    <div class="flex-grow-1" style="min-width:220px">
+      <label class="form-label small" for="rq">Search title, abstract, notes, matrix</label>
+      <input class="form-control" id="rq" name="q" type="search" value="{{ f.q }}" placeholder="e.g. transformer, survey">
+    </div>
+    <div>
+      <label class="form-label small" for="rs">Status</label>
+      <select class="form-select" id="rs" name="status"><option value="">Any</option>
+        {% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if f.status == k }}>{{ v }}</option>{% endfor %}</select>
+    </div>
+    <div>
+      <label class="form-label small" for="rt">Type</label>
+      <select class="form-select" id="rt" name="type"><option value="">Any</option>
+        {% for k, v in types.items() %}<option value="{{ k }}" {{ 'selected' if f.type == k }}>{{ v }}</option>{% endfor %}</select>
+    </div>
+    {% if tags %}
+    <div>
+      <label class="form-label small" for="rtag">Tag</label>
+      <select class="form-select" id="rtag" name="tag"><option value="">Any</option>
+        {% for t in tags %}<option value="{{ t }}" {{ 'selected' if f.tag == t }}>#{{ t }}</option>{% endfor %}</select>
+    </div>
+    {% endif %}
+    <div>
+      <label class="form-label small" for="rch">Chapter</label>
+      <select class="form-select" id="rch" name="chapter"><option value="">Any</option>
+        {% for c in chapters %}<option value="{{ c.id }}" {{ 'selected' if f.chapter == c.id|string }}>{{ c.ordinal }}. {{ c.title }}</option>{% endfor %}</select>
+    </div>
+    <fieldset class="d-flex gap-1 align-items-end">
+      <legend class="form-label small mb-1">Years</legend>
+      <label class="visually-hidden" for="ry1">From year</label>
+      <input class="form-control" style="width:88px" id="ry1" name="year_from" inputmode="numeric" placeholder="from" value="{{ f.year_from }}">
+      <label class="visually-hidden" for="ry2">To year</label>
+      <input class="form-control" style="width:88px" id="ry2" name="year_to" inputmode="numeric" placeholder="to" value="{{ f.year_to }}">
+    </fieldset>
+    <div>
+      <label class="form-label small" for="rsort">Sort</label>
+      <select class="form-select" id="rsort" name="sort">
+        {% for k, v in [('', 'Recently added'), ('year', 'Year'), ('rating', 'Rating'), ('title', 'Title')] %}<option value="{{ k }}" {{ 'selected' if f.sort == k }}>{{ v }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-outline-secondary" type="submit">Apply</button>
+    {% if filtered %}<a class="btn btn-ghost" href="{{ url_for('refs.index') }}">Clear</a>{% endif %}
+  </div>
+</form>
+
+<div class="panel">
+  {% for r in refs %}
+  <article class="ref-row">
+    <div class="ref-num" title="{{ 'Number in the cited bibliography' if numbers.get(r.id) else 'Not in the cited list' }}">{% if numbers.get(r.id) %}[{{ numbers[r.id] }}]{% else %}<span class="text-ink-2">—</span>{% endif %}</div>
+    <div class="min-w-0 flex-grow-1">
+      <h2 class="ref-title"><a href="{{ url_for('refs.view', ref_id=r.id) }}">{{ r.title }}</a></h2>
+      <div class="ref-cite">{{ ieee.html(r)|safe }}</div>
+      <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
+        <span class="chip {{ status_chip[r.status] }}">{{ statuses[r.status] }}</span>
+        <span class="chip">{{ types[r.ref_type] }}</span>
+        {% if r.rating %}<span class="chip accent" aria-label="Rated {{ r.rating }} of 5"><i class="bi bi-star-fill" aria-hidden="true"></i>{{ r.rating }}</span>{% endif %}
+        {% if r.pdf_path %}<a class="chip primary text-decoration-none" href="{{ url_for('refs.pdf_view', ref_id=r.id) }}"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>PDF</a>{% endif %}
+        {% for t in ref_tags.get(r.id, []) %}<span class="chip">#{{ t }}</span>{% endfor %}
+        <span class="small text-ink-2 font-monospace ms-1">{{ r.cite_key }}</span>
+      </div>
+    </div>
+    <button class="btn btn-sm btn-outline-secondary text-nowrap align-self-start" type="button" data-copy="{{ ieee.plain(r) }}"
+            aria-label="Copy IEEE reference for {{ r.cite_key }}"><i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copy IEEE</button>
+  </article>
+  {% else %}
+  <div class="empty">
+    <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
+    {% if filtered %}
+      <h3>No references match</h3><p>Try fewer filters.</p><a class="btn btn-outline-secondary" href="{{ url_for('refs.index') }}">Clear filters</a>
+    {% else %}
+      <h3>Your library is empty</h3>
+      <p>Paste a DOI and the details fill in from Crossref. You can also add arXiv papers, upload PDFs or import a .bib file.</p>
+      <a class="btn btn-primary" href="{{ url_for('refs.new') }}">Add your first reference</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

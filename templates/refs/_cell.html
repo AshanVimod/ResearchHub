@@ -1,0 +1,12 @@
+{% set cell_id = 'cell-' ~ ref.id ~ '-' ~ field %}
+{% if editing %}
+<form id="{{ cell_id }}" class="cell-edit" hx-post="{{ url_for('refs.cell_save', ref_id=ref.id, field=field) }}" hx-target="this" hx-swap="outerHTML">
+  <label class="visually-hidden" for="{{ cell_id }}-in">{{ field }}</label>
+  <textarea class="form-control form-control-sm" id="{{ cell_id }}-in" name="value" rows="3" autofocus
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.dataset.sent='1';this.form.requestSubmit()} if(event.key==='Escape'){this.dataset.cancel='1';htmx.ajax('GET','{{ url_for('refs.cell_view', ref_id=ref.id, field=field) }}',{target:'#{{ cell_id }}',swap:'outerHTML'})}"
+            onblur="if(!this.dataset.cancel&&!this.dataset.sent){this.dataset.sent='1';this.form.requestSubmit()}">{{ ref[field] or '' }}</textarea>
+</form>
+{% else %}
+<button id="{{ cell_id }}" type="button" class="cell{{ ' empty-cell' if not ref[field] }}" hx-get="{{ url_for('refs.cell_edit', ref_id=ref.id, field=field) }}"
+        hx-target="this" hx-swap="outerHTML" aria-label="Edit {{ field[3:]|replace('_', ' ') }} for {{ ref.cite_key }}">{{ ref[field] or '+' }}</button>
+{% endif %}

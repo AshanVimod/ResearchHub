@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% import "files/_macros.html" as fm with context %}
+{% block title %}Recent files{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('files.index') }}">Files</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Recent</li></ol></nav>
+<div class="page-head"><div><h1 class="page-title">Changed in the last 14 days</h1>
+  <p class="page-sub">Based on the last scan. Re-scan on the Files page to pick up newer changes.</p></div></div>
+<div class="panel"><div class="panel-body py-1">
+  {% for f in rows %}
+  <div class="row-item">
+    {{ fm.icon(f.ext) }}
+    <div class="min-w-0"><div class="text-truncate fw-semibold">{{ f.name }}</div><div class="small text-ink-2 text-truncate">{{ f.rel_path }}</div></div>
+    <span class="meta num">{{ f.mtime|timestamp }}</span>
+    {{ fm.actions(f, request.full_path, refs, tags) }}
+  </div>
+  {% else %}
+  <div class="empty"><i class="bi bi-clock-history" aria-hidden="true"></i><h3>Nothing changed recently</h3><p>No indexed file was modified in the last two weeks.</p></div>
+  {% endfor %}
+</div></div>
+{% endblock %}

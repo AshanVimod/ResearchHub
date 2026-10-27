@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ f.q ~ ' · ' if f.q }}Search{% endblock %}
+{% set icons = {'file_page': 'file-earmark-text', 'ref': 'journal-bookmark', 'diary': 'journal-text', 'task': 'check2-square',
+                'inbox': 'lightbulb', 'experiment': 'clipboard-data', 'label': 'tags'} %}
+{% macro link_for(g, page=None) -%}
+  {%- set m = g.meta -%}
+  {%- if g.type == 'file_page' -%}
+    {%- if m.ext == '.pdf' -%}
+      {%- if file_refs.get(g.id) -%}{{ url_for('refs.pdf_view', ref_id=file_refs[g.id]) }}{%- else -%}{{ url_for('files.view_pdf', file_id=g.id) }}{%- endif -%}{{ '#page=' ~ page if page }}
+    {%- else -%}{{ url_for('files.index', view='flat', q=m.name) }}{%- endif -%}
+  {%- elif g.type == 'ref' -%}{{ url_for('refs.view', ref_id=g.id) }}
+  {%- elif g.type == 'diary' -%}{{ url_for('diary.view', entry_id=g.id) }}
+  {%- elif g.type == 'task' -%}{{ url_for('tasks.index', edit=g.id) }}
+  {%- elif g.type == 'inbox' -%}{{ url_for('inbox.index') }}
+  {%- elif g.type == 'experiment' -%}{{ url_for('experiments.view', exp_id=g.id) }}
+  {%- elif g.type == 'label' -%}{{ url_for('labels.index', q=m.entity) }}
+  {%- endif -%}
+{%- endmacro %}
+{% block content %}
+<div class="page-head"><div><h1 class="page-title">Search</h1>
+  <p class="page-sub">{{ stats.items }} items indexed{% if pending %} · {{ pending }} file{{ 's' if pending != 1 }} waiting for text extraction (next scan){% endif %}</p></div></div>
+
+<form class="panel mb-3" method="get" role="search" aria-label="Search everything">
+  <div class="panel-body">
+    <div class="d-flex gap-2 mb-2">
+      <label class="visually-hidden" for="sq">Search terms</label>
+      <input class="form-control form-control-lg" id="sq" name="q" type="search" value="{{ f.q }}" placeholder='transformer  ·  "neural network" -image  ·  learn*' autofocus aria-describedby="sq-help">
+      <button class="btn btn-primary px-4" type="submit">Search</button>
+    </div>
+    {% if sem_on %}
+    <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Search mode">
+      <input type="radio" class="btn-check" name="mode" id="m-kw" value="" {{ 'checked' if not meaning }} onchange="this.form.submit()">
+      <label class="btn btn-outline-secondary" for="m-kw"><i class="bi bi-fonts me-1" aria-hidden="true"></i>Keyword</label>
+      <input type="radio" class="btn-check" name="mode" id="m-mean" value="meaning" {{ 'checked' if meaning }} onchange="this.form.submit()">
+      <label class="btn btn-outline-secondary" for="m-mean"><i class="bi bi-stars me-1" aria-hidden="true"></i>Meaning</label>
+    </div>
+    {% endif %}
+    <p class="form-text mb-3" id="sq-help">Words must all appear · <code>OR</code> for either · <code>"exact phrase"</code> · <code>prefix*</code> · <code>-word</code> to exclude</p>
+    <div class="row g-2">
+      <div class="col-6 col-md-3"><label class="form-label small" for="s-type">In</label>
+        <select class="form-select form-select-sm" id="s-type" name="type"><option value="">Everything</option>
+          {% for k, v in types.items() %}<option value="{{ k }}" {{ 'selected' if f.type == k }}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-3"><label class="form-label small" for="s-folder">Folder</label>
+        <select class="form-select form-select-sm" id="s-folder" name="root_folder"><option value="">Any folder</option>
+          {% for d in folders %}<option value="{{ d }}" {{ 'selected' if f.root_folder == d }}>{{ '— ' if '/' in d }}{{ d.split('/')[-1] }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-md-2"><label class="form-label small" for="s-tag">Tag</label>
+        <select class="form-select form-select-sm" id="s-tag" name="tag"><option value="">Any</option>
+          {% for t in tags %}<option value="{{ t }}" {{ 'selected' if f.tag == t }}>#{{ t }}</option>{% endfor %}</select></div>
+      <div class="col-3 col-md-2"><label class="form-label small" for="s-y1">From year</label>
+        <input class="form-control form-control-sm" id="s-y1" name="year_from" inputmode="numeric" value="{{ f.year_from }}"></div>
+      <div class="col-3 col-md-2"><label class="form-label small" for="s-y2">To year</label>
+        <input class="form-control form-control-sm" id="s-y2" name="year_to" inputmode="numeric" value="{{ f.year_to }}"></div>
+    </div>
+  </div>
+</form>
+
+{% if saved %}
+<div class="d-flex flex-wrap gap-2 mb-3 align-items-center small"><span class="text-ink-2">Saved:</span>
+  {% for s in saved %}
+  <span class="chip"><a class="text-decoration-none" href="{{ url_for('search.index', q=s.query) }}">{{ s.name }}</a>
+    <form class="d-inline" method="post" action="{{ url_for('search.delete_search', sid=s.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-link btn-sm p-0 ms-1 text-ink-2" type="submit" aria-label="Delete saved search {{ s.name }}"><i class="bi bi-x" aria-hidden="true"></i></button></form></span>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if meaning %}
+<div class="rh-alert {{ 'danger' if sem_error or sem_problem else 'warning' }} mb-3" role="status">
+  <i class="bi bi-stars" aria-hidden="true"></i>
+  <span class="msg">{% if sem_error or sem_problem %}{{ sem_error or sem_problem }}
+    {% else %}Meaning search finds passages about the same idea even when the words differ. Searches PDF and document text only.
+    {{ sem_status.embedded }} of {{ sem_status.files }} files embedded{% if indexing %} · indexing now…{% endif %}.{% endif %}</span>
+  {% if not sem_problem and sem_status.pending and not indexing %}
+  <form class="ms-auto" method="post" action="{{ url_for('search.build_semantic') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="q" value="{{ f.q }}"><button class="linklike" type="submit">Embed {{ sem_status.pending }} file{{ 's' if sem_status.pending != 1 }} now</button></form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if result is not none %}
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <p class="small text-ink-2 mb-0" role="status">{{ result.results|length }} result{{ 's' if result.results|length != 1 }} in {{ elapsed }} ms
+      {% for t, n in result.counts.items() %} · {{ types[t] }} {{ n }}{% endfor %}</p>
+    <form class="ms-auto d-flex gap-1" method="post" action="{{ url_for('search.save_search') }}" x-data="{ open: false }">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="query" value="{{ f.q }}">
+      <template x-if="open"><span class="d-flex gap-1"><label class="visually-hidden" for="ss-name">Name</label>
+        <input class="form-control form-control-sm" id="ss-name" name="name" placeholder="Name this search" required x-init="$el.focus()">
+        <button class="btn btn-sm btn-primary" type="submit">Save</button></span></template>
+      <button class="btn btn-sm btn-ghost" type="button" x-show="!open" @click="open = true"><i class="bi bi-bookmark-plus me-1" aria-hidden="true"></i>Save search</button>
+    </form>
+  </div>
+  <div class="panel">
+    {% for g in result.results %}
+    <article class="hit">
+      <i class="bi bi-{{ icons[g.type] }} hit-ic" aria-hidden="true"></i>
+      <div class="min-w-0 flex-grow-1">
+        <h2 class="hit-title"><a href="{{ link_for(g, g.hits[0].page) }}">{{ g.meta.name if g.type == 'file_page' else g.title }}</a></h2>
+        <div class="small text-ink-2 mb-1">
+          <span class="chip me-1">{{ types[g.type] }}</span>
+          {% if g.type == 'file_page' %}<span class="text-break">{{ g.meta.rel_path }}</span>
+            {% if g.copies %}<span class="chip warning ms-1" title="{% for c in g.copies %}{{ c.rel_path }}&#10;{% endfor %}">+{{ g.copies|length }} identical cop{{ 'y' if g.copies|length == 1 else 'ies' }}</span>{% endif %}
+          {% elif g.type == 'ref' %}{{ g.meta.cite_key }}{% if g.meta.year %} · {{ g.meta.year }}{% endif %}
+          {% elif g.when %}{{ g.when|nice_date }}{% endif %}
+        </div>
+        {% for h in g.hits %}
+        <p class="hit-snip mb-1">{% if h.score is defined %}<span class="chip primary me-1" title="Cosine similarity">{{ '%.2f'|format(h.score) }}</span>{% endif %}{% if h.page %}<a class="page-link-chip" href="{{ link_for(g, h.page) }}">p. {{ h.page }}</a>{% endif %}{{ h.snippet|safe }}</p>
+        {% endfor %}
+      </div>
+    </article>
+    {% else %}
+    <div class="empty"><i class="bi bi-search" aria-hidden="true"></i><h3>No matches</h3>
+      <p>Try fewer words, a prefix like <code>learn*</code>, or remove filters.{% if pending %} {{ pending }} files are still waiting for text extraction.{% endif %}</p></div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="panel"><div class="empty"><i class="bi bi-search" aria-hidden="true"></i><h3>Search your whole project</h3>
+    <p>PDF pages, Word and Excel files, notebooks, references, diary entries, tasks, labels and experiments. Press <span class="kbd">/</span> anywhere to jump here.</p></div></div>
+{% endif %}
+{% endblock %}

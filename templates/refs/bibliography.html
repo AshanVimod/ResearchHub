@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Bibliography{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Bibliography</h1>
+    <p class="page-sub">IEEE style. Numbered by IEEE no. (order of first citation) where set, otherwise by the order references were added.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-outline-secondary" type="button" data-copy-from="#bib-plain" {{ 'disabled' if not rows }}><i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copy all</button>
+    <a class="btn btn-outline-secondary{{ ' disabled' if not rows }}" href="{{ url_for('refs.bibliography_export', fmt='bib', status=scope) }}"><i class="bi bi-filetype-txt me-1" aria-hidden="true"></i>.bib</a>
+    <a class="btn btn-primary{{ ' disabled' if not rows }}" href="{{ url_for('refs.bibliography_export', fmt='docx', status=scope) }}"><i class="bi bi-file-earmark-word me-1" aria-hidden="true"></i>Word</a>
+  </div>
+</div>
+{% include "refs/_tabs.html" %}
+
+<div class="btn-group mb-3" role="group" aria-label="Which references">
+  <a class="btn btn-outline-secondary{{ ' active' if scope != 'all' }}" href="{{ url_for('refs.bibliography') }}" {% if scope != 'all' %}aria-current="true"{% endif %}>Cited</a>
+  <a class="btn btn-outline-secondary{{ ' active' if scope == 'all' }}" href="{{ url_for('refs.bibliography', status='all') }}" {% if scope == 'all' %}aria-current="true"{% endif %}>All references</a>
+</div>
+
+<div class="panel"><div class="panel-body">
+  {% if items %}
+  <ol class="bib">
+    {% for r, html, plain in items %}
+    <li><span class="n">[{{ loop.index }}]</span><span class="t">{{ html|safe }}</span>
+      <a class="small ms-1 no-print" href="{{ url_for('refs.view', ref_id=r.id) }}" aria-label="Open {{ r.cite_key }}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a></li>
+    {% endfor %}
+  </ol>
+  <textarea id="bib-plain" class="visually-hidden" aria-hidden="true" tabindex="-1" readonly>{% for r, html, plain in items %}[{{ loop.index }}] {{ plain }}
+{% endfor %}</textarea>
+  {% else %}
+  <div class="empty"><i class="bi bi-list-ol" aria-hidden="true"></i>
+    <h3>{{ 'Nothing marked as cited yet' if scope != 'all' else 'No references yet' }}</h3>
+    <p>{{ 'Set a reference’s status to Cited to put it in this list.' if scope != 'all' else 'Add references to build the list.' }}</p>
+    <a class="btn btn-outline-secondary" href="{{ url_for('refs.index') }}">Go to the library</a></div>
+  {% endif %}
+</div></div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% set ICONS = {'.pdf': 'file-earmark-pdf', '.docx': 'file-earmark-word', '.doc': 'file-earmark-word', '.xlsx': 'file-earmark-excel',
+  '.xls': 'file-earmark-excel', '.csv': 'filetype-csv', '.pptx': 'file-earmark-ppt', '.py': 'filetype-py', '.ipynb': 'journal-code',
+  '.md': 'filetype-md', '.txt': 'file-earmark-text', '.png': 'file-earmark-image', '.jpg': 'file-earmark-image', '.zip': 'file-earmark-zip'} %}
+
+{% macro icon(ext) %}<i class="bi bi-{{ ICONS.get(ext, 'file-earmark') }} file-ic" aria-hidden="true"></i>{% endmacro %}
+
+{% macro actions(f, next_url, refs=None, tags=None) %}
+<div class="file-actions">
+  <div class="dropdown">
+    <button class="btn btn-sm btn-ghost" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Tags for {{ f.name }}" title="Tags">
+      <i class="bi bi-tag" aria-hidden="true"></i></button>
+    <form class="dropdown-menu dropdown-menu-end p-2" style="min-width:240px" method="post" action="{{ url_for('files.tags', file_id=f.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ next_url }}">
+      <label class="form-label small" for="ft-{{ f.id }}">Tags (comma-separated)</label>
+      <div class="d-flex gap-1"><input class="form-control form-control-sm" id="ft-{{ f.id }}" name="tags" value="{{ (tags or {}).get(f.id, [])|join(', ') }}">
+        <button class="btn btn-sm btn-primary" type="submit">Save</button></div>
+    </form>
+  </div>
+  {% if f.ext == '.pdf' %}
+  <a class="btn btn-sm btn-ghost" href="{{ url_for('files.view_pdf', file_id=f.id) }}" title="View in the app" aria-label="View {{ f.name }} in the app"><i class="bi bi-eye" aria-hidden="true"></i></a>
+  {% endif %}
+  <form method="post" action="{{ url_for('files.open_file', file_id=f.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ next_url }}">
+    <button class="btn btn-sm btn-ghost" type="submit" title="Open in its Windows app" aria-label="Open {{ f.name }}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></button></form>
+  <form method="post" action="{{ url_for('files.reveal', file_id=f.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="{{ next_url }}">
+    <button class="btn btn-sm btn-ghost" type="submit" title="Show in Explorer" aria-label="Show {{ f.name }} in Explorer"><i class="bi bi-folder2-open" aria-hidden="true"></i></button></form>
+  {% if f.ext == '.pdf' %}
+    {% if refs and refs.get(f.id) %}
+      <a class="chip primary text-decoration-none" href="{{ url_for('refs.view', ref_id=refs[f.id][0].id) }}">{{ refs[f.id][0].cite_key }}</a>
+    {% else %}
+      <form method="post" action="{{ url_for('files.to_ref', file_id=f.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-ghost" type="submit" title="Make reference" aria-label="Make a reference from {{ f.name }}"><i class="bi bi-journal-plus" aria-hidden="true"></i></button></form>
+    {% endif %}
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro status_chip(f) %}
+  {% if f.text_status == 'error' %}<span class="chip danger" title="{{ f.error }}">Error</span>
+  {% elif f.text_status == 'missing' %}<span class="chip warning">Missing</span>{% endif %}
+{% endmacro %}

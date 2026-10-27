@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit ' ~ ref.cite_key if ref.id else 'New reference' }}{% endblock %}
+{% macro field(name, label, cls='col-sm-6', type='text', help=None, attrs='') %}
+  <div class="{{ cls }}">
+    <label class="form-label" for="f-{{ name }}">{{ label }}</label>
+    <input class="form-control{{ ' is-invalid' if errors.get(name) }}" type="{{ type }}" id="f-{{ name }}" name="{{ name }}" value="{{ ref[name] if ref[name] is not none else '' }}" {{ attrs|safe }}
+           {% if errors.get(name) or help %}aria-describedby="f-{{ name }}-d"{% endif %}{% if errors.get(name) %} aria-invalid="true"{% endif %}>
+    {% if errors.get(name) %}<div class="invalid-feedback d-block" id="f-{{ name }}-d">{{ errors[name] }}</div>
+    {% elif help %}<div class="form-text" id="f-{{ name }}-d">{{ help }}</div>{% endif %}
+  </div>
+{% endmacro %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('refs.index') }}">References</a></li>
+  {% if ref.id %}<li class="breadcrumb-item"><a href="{{ url_for('refs.view', ref_id=ref.id) }}">{{ ref.cite_key }}</a></li>{% endif %}
+  <li class="breadcrumb-item active" aria-current="page">{{ 'Edit' if ref.id else 'New' }}</li>
+</ol></nav>
+<div class="page-head"><h1 class="page-title">{{ 'Edit reference' if ref.id else 'Check and save' }}</h1></div>
+
+{% if notice %}<div class="rh-alert warning mb-3" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i><span class="msg">{{ notice }}</span></div>{% endif %}
+{% if doi_block %}
+<div class="rh-alert danger mb-3" role="alert"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i>
+  <span class="msg">This DOI is already in the library as <strong>{{ doi_block.cite_key }}</strong>, so it can't be added twice.</span>
+  <a class="go" href="{{ url_for('refs.view', ref_id=doi_block.id) }}">Open it<i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a></div>
+{% endif %}
+{% if errors %}
+<div class="rh-alert danger mb-3" role="alert" tabindex="-1" id="error-summary"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i>
+  <span class="msg">Please fix: {% for k, v in errors.items() %}<a href="#f-{{ k }}">{{ v }}</a>{{ '; ' if not loop.last }}{% endfor %}</span></div>
+<script>document.getElementById("error-summary").focus();</script>
+{% endif %}
+
+<form method="post" action="{{ url_for('refs.update', ref_id=ref.id) if ref.id else url_for('refs.create') }}" novalidate x-data="{ type: '{{ ref.ref_type or 'journal' }}' }">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% for k in ('pdf_token', 'file_id', 'pdf_path') %}{% if ref[k] %}<input type="hidden" name="{{ k }}" value="{{ ref[k] }}">{% endif %}{% endfor %}
+
+  {% if duplicates %}
+  <div class="panel mb-3" style="border-color:var(--rh-warning)" role="alert">
+    <div class="panel-body">
+      <h2 class="h6"><i class="bi bi-intersect me-1" aria-hidden="true"></i>This looks like a reference you already have</h2>
+      <ul class="list-clean small mb-3">
+        {% for d in duplicates %}<li class="row-item"><a href="{{ url_for('refs.view', ref_id=d.id) }}" target="_blank" rel="noopener">{{ d.title }}</a><span class="meta">{{ d.year or '' }} · {{ d.cite_key }}</span></li>{% endfor %}
+      </ul>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-accent" type="submit" name="merge_into" value="{{ duplicates[0].id }}">Merge into {{ duplicates[0].cite_key }}</button>
+        <button class="btn btn-outline-secondary" type="submit" name="keep_both" value="1">Keep both</button>
+      </div>
+      <p class="small text-ink-2 mt-2 mb-0">Merge keeps the existing record, fills in this form's non-empty fields and moves any links to it.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-xl-8">
+      <div class="panel mb-3"><div class="panel-body"><div class="row g-3">
+        <div class="col-sm-5">
+          <label class="form-label" for="f-ref_type">Type</label>
+          <select class="form-select" id="f-ref_type" name="ref_type" x-model="type">
+            {% for k, v in types.items() %}<option value="{{ k }}" {{ 'selected' if ref.ref_type == k }}>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-7">
+          <label class="form-label" for="f-status">Status</label>
+          <select class="form-select" id="f-status" name="status">
+            {% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if ref.status == k }}>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="f-title">Title <span class="text-danger" aria-hidden="true">*</span></label>
+          <textarea class="form-control{{ ' is-invalid' if errors.title }}" id="f-title" name="title" rows="2" required aria-describedby="f-title-d">{{ ref.title }}</textarea>
+          <div class="{{ 'invalid-feedback d-block' if errors.title else 'form-text' }}" id="f-title-d">{{ errors.title or 'Sentence case, as it should appear in the IEEE list.' }}</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="f-authors">Authors</label>
+          <textarea class="form-control font-monospace small" id="f-authors" name="authors_text" rows="3" aria-describedby="f-authors-d" placeholder="Lovelace, Ada">{{ ref.authors_text }}</textarea>
+          <div class="form-text" id="f-authors-d">One per line as <code>Family, Given</code>. For an organisation, write just its name.</div>
+        </div>
+        {{ field('year', 'Year', 'col-4 col-sm-3', 'text', None, 'inputmode="numeric" maxlength="4"') }}
+        <div class="col-4 col-sm-3">
+          <label class="form-label" for="f-month">Month</label>
+          <select class="form-select" id="f-month" name="month"><option value="">—</option>
+            {% for m in range(1, 13) %}<option value="{{ m }}" {{ 'selected' if ref.month|string == m|string }}>{{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1] }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label" for="f-container"><span x-text="{journal:'Journal', conference:'Proceedings / conference', chapter:'Book title', thesis:'Degree (e.g. M.Sc. thesis)', website:'Site name', preprint:'Server (e.g. arXiv, SSRN)'}[type] || 'Container'"></span></label>
+          <input class="form-control" id="f-container" name="container" value="{{ ref.container or '' }}">
+        </div>
+        <template x-if="['journal','conference','chapter','dataset','software','report'].includes(type)"><div class="row g-3 m-0 p-0">
+          {{ field('volume', 'Volume / version', 'col-4') }}
+          {{ field('issue', 'Issue / report no.', 'col-4') }}
+          {{ field('pages', 'Pages', 'col-4', 'text', None, 'placeholder="24-36"') }}
+          {{ field('article_no', 'Article no.', 'col-4') }}
+        </div></template>
+        {{ field('publisher', 'Publisher / institution') }}
+        {{ field('location', 'Location') }}
+        {{ field('doi', 'DOI', 'col-sm-6', 'text', None, 'placeholder="10.xxxx/..."') }}
+        {{ field('arxiv_id', 'arXiv id', 'col-sm-6') }}
+        {{ field('url', 'URL', 'col-sm-8', 'url', None, 'inputmode="url"') }}
+        {{ field('accessed_date', 'Accessed', 'col-sm-4', 'date') }}
+        <div class="col-12">
+          <label class="form-label" for="f-abstract">Abstract</label>
+          <textarea class="form-control" id="f-abstract" name="abstract" rows="4">{{ ref.abstract or '' }}</textarea>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="col-xl-4">
+      <div class="panel mb-3"><div class="panel-body"><div class="row g-3">
+        <div class="col-6">
+          <label class="form-label" for="f-rating">Rating</label>
+          <select class="form-select" id="f-rating" name="rating"><option value="">—</option>
+            {% for n in range(1, 6) %}<option value="{{ n }}" {{ 'selected' if ref.rating|string == n|string }}>{{ '★' * n }}</option>{% endfor %}</select>
+        </div>
+        {{ field('ieee_number', 'IEEE no.', 'col-6', 'text', 'Order of first citation; blank = order added.', 'inputmode="numeric"') }}
+        <div class="col-12">
+          <fieldset><legend class="form-label">Supports chapters</legend>
+            <div class="d-flex flex-wrap gap-1">
+            {% for c in chapters %}
+              <input type="checkbox" class="btn-check" id="f-ch-{{ c.id }}" name="chapter_ids" value="{{ c.id }}" {{ 'checked' if c.id in selected_chapters }}>
+              <label class="btn btn-sm btn-outline-secondary" for="f-ch-{{ c.id }}" title="{{ c.title }}">{{ c.ordinal }}. {{ c.title.split(' ')[0] }}</label>
+            {% endfor %}</div></fieldset>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="f-tags">Tags</label>
+          <input class="form-control" id="f-tags" name="tags" value="{{ ref.tags or '' }}" placeholder="survey, methods" aria-describedby="f-tags-d">
+          <div class="form-text" id="f-tags-d">Comma-separated.</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="f-notes">Notes</label>
+          <textarea class="form-control" id="f-notes" name="notes" rows="4" placeholder="Markdown allowed">{{ ref.notes or '' }}</textarea>
+        </div>
+      </div></div></div>
+
+      <details class="panel mb-3"{% if ref.lm_method or ref.lm_dataset %} open{% endif %}>
+        <summary class="panel-body py-3 fw-semibold">Literature matrix fields</summary>
+        <div class="panel-body pt-0"><div class="row g-2">
+          {% for k, label in matrix %}
+          <div class="col-12"><label class="form-label small" for="f-{{ k }}">{{ label }}</label>
+            <input class="form-control form-control-sm" id="f-{{ k }}" name="{{ k }}" value="{{ ref[k] or '' }}"></div>
+          {% endfor %}
+        </div></div>
+      </details>
+
+      <div class="d-grid gap-2">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>{{ 'Save changes' if ref.id else 'Save reference' }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('refs.view', ref_id=ref.id) if ref.id else url_for('refs.new') }}">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

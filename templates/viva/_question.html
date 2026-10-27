@@ -1,0 +1,41 @@
+<form hx-post="{{ url_for('viva.update_question', qid=q.id) if q.id else url_for('viva.create_question') }}" hx-target="#form-modal-content" hx-swap="innerHTML" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="modal-header">
+    <h2 class="modal-title" id="form-modal-title">{{ 'Edit question' if q.id else 'New question' }}</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  </div>
+  <div class="modal-body">
+    <div class="mb-3">
+      <label class="form-label" for="vq-q">Question <span class="text-danger" aria-hidden="true">*</span></label>
+      <textarea class="form-control{{ ' is-invalid' if errors.question }}" id="vq-q" name="question" rows="2" required autofocus
+                {% if errors.question %}aria-invalid="true" aria-describedby="vq-q-err"{% endif %}>{{ q.question or '' }}</textarea>
+      {% if errors.question %}<div class="invalid-feedback" id="vq-q-err" role="alert">{{ errors.question }}</div>{% endif %}
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="vq-a">Prepared answer</label>
+      <textarea class="form-control" id="vq-a" name="answer" rows="5" placeholder="Key points, figures to cite… (Markdown works)">{{ q.answer or '' }}</textarea>
+    </div>
+    <div class="row g-3">
+      <div class="col-sm-6"><label class="form-label" for="vq-c">Category</label>
+        <select class="form-select" id="vq-c" name="category">{% for k, v in categories.items() %}<option value="{{ k }}" {{ 'selected' if q.category == k }}>{{ v }}</option>{% endfor %}</select></div>
+      <div class="col-sm-6"><fieldset><legend class="form-label">Confidence</legend>
+        <div class="btn-group w-100" role="group">
+          {% for k, v in confidence.items() %}<input type="radio" class="btn-check" name="confidence" id="vq-cf{{ k }}" value="{{ k }}" {{ 'checked' if q.confidence == k }}>
+          <label class="btn btn-outline-secondary btn-sm" for="vq-cf{{ k }}">{{ v }}</label>{% endfor %}
+        </div></fieldset></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    {% if q.id %}
+    <button class="btn btn-link text-danger me-auto px-0" type="button"
+            onclick="const f=document.getElementById('del-q-{{ q.id }}'); bootstrap.Modal.getInstance('#form-modal').hide(); f.requestSubmit();">
+      <i class="bi bi-trash me-1" aria-hidden="true"></i>Delete</button>
+    {% endif %}
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </div>
+</form>
+{% if q.id %}
+<form id="del-q-{{ q.id }}" method="post" action="{{ url_for('viva.delete_question', qid=q.id) }}" data-confirm="Delete this question and its answer?" class="d-none">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% endif %}

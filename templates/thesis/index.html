@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Thesis{% endblock %}
+{% set status_chip = {'not_started': '', 'drafting': 'accent', 'with_supervisor': 'primary', 'revising': 'warning', 'final': 'success'} %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Thesis</h1>
+    <p class="page-sub">{% if path %}<span class="text-break">{{ path }}</span>{% if last %} · counted {{ last.counted_at.replace('T', ' ')[:16] }}{% endif %}{% else %}No thesis file set{% endif %}</p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if path %}<a class="btn btn-outline-secondary" href="{{ url_for('thesis.index', recount=1) }}"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>Recount</a>{% endif %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('settings.index') }}#thesis_docx_path"><i class="bi bi-gear me-1" aria-hidden="true"></i>{{ 'Change file' if path else 'Set thesis file' }}</a>
+  </div>
+</div>
+
+{% if state.message %}
+<div class="rh-alert {{ 'danger' if state.status == 'error' else 'warning' }} mb-3" role="status">
+  <i class="bi bi-info-circle" aria-hidden="true"></i><span class="msg">{{ state.message }}</span></div>
+{% endif %}
+
+<div class="strip mb-3">
+  <div>
+    <div class="eyebrow mb-1">Main text (chapters 1–7)</div>
+    <div class="stat num">{{ '{:,}'.format(main) }} <small>/ {{ '{:,}'.format(min_words) }} minimum</small></div>
+    <div class="progress mt-2" style="height:8px" role="progressbar" aria-label="Main text progress" aria-valuenow="{{ main }}" aria-valuemin="0" aria-valuemax="{{ min_words }}">
+      <div class="progress-bar" style="width: {{ [main / min_words * 100, 100]|min }}%; background: {{ 'var(--rh-success)' if main >= min_words else 'var(--rh-primary)' }}"></div></div>
+    <div class="small text-ink-2 mt-1">{% if main >= min_words %}Minimum met{% else %}{{ '{:,}'.format(min_words - main) }} words to go{% endif %} · chapter targets add up to {{ '{:,}'.format(target_total) }}</div>
+  </div>
+  <div>
+    <div class="eyebrow mb-1">Abstract</div>
+    {% if abstract is not none %}
+      <div class="stat num">{{ abstract }} <small>words</small></div>
+      <span class="chip {{ abstract_badge }} mt-2"><i class="bi {{ 'bi-check2' if abstract_badge == 'success' else 'bi-exclamation-triangle' }}" aria-hidden="true"></i>
+        {% if abstract_badge == 'success' %}Within {{ abstract_range[0] }}–{{ abstract_range[1] }}{% elif abstract < abstract_range[0] %}{{ abstract_range[0] - abstract }} short of {{ abstract_range[0] }}{% else %}{{ abstract - abstract_range[1] }} over {{ abstract_range[1] }}{% endif %}</span>
+    {% else %}<div class="text-ink-2 small mt-2">No heading named “Abstract” found yet.</div>{% endif %}
+  </div>
+  <div>
+    <div class="eyebrow mb-1">Progress over time</div>
+    {% if history|length > 1 %}<div style="position:relative;height:70px"><canvas id="wc-chart" role="img" aria-label="Main-text words per day: {{ history[0].words }} on {{ history[0].day }} to {{ history[-1].words }} on {{ history[-1].day }}"></canvas></div>
+    {% else %}<div class="small text-ink-2 mt-2">The chart appears after counts on two different days.</div>{% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-8">
+    <section class="panel mb-3" aria-labelledby="ch-h">
+      <div class="panel-head"><h2 class="panel-title" id="ch-h"><i class="bi bi-list-ol" aria-hidden="true"></i>Chapters</h2>
+        <span class="small text-ink-2">Split at Heading 1 paragraphs; numbering like “3.” or “Chapter 3:” is ignored</span></div>
+      <div class="panel-body pt-2">
+        {% for c in chapters %}
+        {% set pct = ((c.current_words or 0) / c.target_words * 100) if c.target_words else 0 %}
+        <div class="chapter" id="ch-{{ c.id }}" x-data="{ open: false }">
+          <div class="chapter-row">
+            <span class="ord num">{{ c.ordinal if c.ordinal else '—' }}</span>
+            <div class="min-w-0 flex-grow-1">
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="fw-semibold">{{ c.title }}</span>
+                {% if open_tasks.get(c.id) %}<a class="chip text-decoration-none" href="{{ url_for('tasks.index', chapter=c.id) }}">{{ open_tasks[c.id] }} open task{{ 's' if open_tasks[c.id] != 1 }}</a>{% endif %}
+                {% set unresolved = (comments.get(c.id, [])|rejectattr('resolved')|list)|length %}
+                {% if unresolved %}<span class="chip warning">{{ unresolved }} comment{{ 's' if unresolved != 1 }}</span>{% endif %}
+              </div>
+              <div class="small text-ink-2">{{ notes.get(c.ordinal, '') }}</div>
+              {% if c.target_words %}
+              <div class="d-flex align-items-center gap-2 mt-1">
+                <div class="progress flex-grow-1" style="height:6px" role="progressbar" aria-label="{{ c.title }} words" aria-valuenow="{{ c.current_words or 0 }}" aria-valuemin="0" aria-valuemax="{{ c.target_words }}">
+                  <div class="progress-bar" style="width: {{ [pct, 100]|min }}%; background: {{ 'var(--rh-success)' if pct >= 100 else 'var(--rh-accent)' }}"></div></div>
+                <span class="small num text-nowrap">{{ '{:,}'.format(c.current_words or 0) }} / {{ '{:,}'.format(c.target_words) }}</span>
+              </div>
+              {% else %}<div class="small num mt-1">{{ '{:,}'.format(c.current_words or 0) }} words</div>{% endif %}
+            </div>
+            <form method="post" action="{{ url_for('thesis.chapter', cid=c.id) }}" class="flex-none">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="visually-hidden" for="cs-{{ c.id }}">Status of {{ c.title }}</label>
+              <select class="form-select form-select-sm" id="cs-{{ c.id }}" name="status" onchange="this.form.requestSubmit()">
+                {% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if c.status == k }}>{{ v }}</option>{% endfor %}</select>
+            </form>
+            <button class="btn btn-sm btn-ghost btn-icon flex-none" type="button" @click="open = !open" :aria-expanded="open" aria-controls="chd-{{ c.id }}" aria-label="Details for {{ c.title }}">
+              <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'" aria-hidden="true"></i></button>
+          </div>
+          <div class="chapter-detail" id="chd-{{ c.id }}" x-show="open" x-cloak>
+            <form class="row g-2 mb-3" method="post" action="{{ url_for('thesis.chapter', cid=c.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% if c.ordinal %}<div class="col-sm-7"><label class="form-label small" for="hm-{{ c.id }}">Heading text in the .docx</label>
+                <input class="form-control form-control-sm" id="hm-{{ c.id }}" name="heading_match" value="{{ c.heading_match or '' }}" aria-describedby="hm-h-{{ c.id }}">
+                <div class="form-text" id="hm-h-{{ c.id }}">Alternatives separated by |</div></div>{% endif %}
+              <div class="col-6 col-sm-3"><label class="form-label small" for="tw-{{ c.id }}">Target words</label>
+                <input class="form-control form-control-sm" id="tw-{{ c.id }}" name="target_words" inputmode="numeric" value="{{ c.target_words or '' }}"></div>
+              <div class="col-6 col-sm-2 d-flex align-items-end"><button class="btn btn-sm btn-outline-secondary w-100" type="submit">Save</button></div>
+            </form>
+            <h3 class="eyebrow mb-2">Supervisor comments</h3>
+            <ul class="list-clean small mb-2">
+              {% for cm in comments.get(c.id, []) %}
+              <li class="row-item">
+                <form method="post" action="{{ url_for('thesis.comment', comment_id=cm.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-ghost btn-icon" type="submit" aria-label="{{ 'Reopen' if cm.resolved else 'Resolve' }} comment">
+                    <i class="bi {{ 'bi-check-circle-fill text-success' if cm.resolved else 'bi-circle' }}" aria-hidden="true"></i></button></form>
+                <span class="{{ 'text-decoration-line-through text-ink-2' if cm.resolved }}">{{ cm.comment }}{% if cm.source %} <span class="text-ink-2">({{ cm.source }})</span>{% endif %}</span>
+                <form class="ms-auto" method="post" action="{{ url_for('thesis.comment', comment_id=cm.id) }}" data-confirm="Delete this comment?">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="delete" value="1">
+                  <button class="btn btn-sm btn-ghost btn-icon" type="submit" aria-label="Delete comment"><i class="bi bi-x-lg" aria-hidden="true"></i></button></form>
+              </li>
+              {% else %}<li class="text-ink-2">No comments.</li>{% endfor %}
+            </ul>
+            <form class="d-flex gap-2" method="post" action="{{ url_for('thesis.add_comment', cid=c.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="visually-hidden" for="cm-{{ c.id }}">New comment</label>
+              <input class="form-control form-control-sm" id="cm-{{ c.id }}" name="comment" placeholder="e.g. Justify the 5-fold grouped split">
+              <label class="visually-hidden" for="cms-{{ c.id }}">Source</label>
+              <input class="form-control form-control-sm" style="max-width:140px" id="cms-{{ c.id }}" name="source" placeholder="Meeting 21 Oct">
+              <button class="btn btn-sm btn-outline-secondary" type="submit">Add</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+        <p class="small text-ink-2 mt-3 mb-0">References and appendices are excluded from the 10,000-word minimum.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-xl-4">
+    {% for code, items in lists.items() %}
+    {% set done = items|selectattr('done')|list|length %}
+    <section class="panel mb-3" id="list-{{ code }}" aria-labelledby="lh-{{ code }}">
+      <div class="panel-head"><h2 class="panel-title" id="lh-{{ code }}"><i class="bi bi-ui-checks" aria-hidden="true"></i>{{ list_titles.get(code, code|title) }}</h2>
+        <span class="small num {{ 'text-success fw-semibold' if done == items|length else 'text-ink-2' }}">{{ done }}/{{ items|length }}</span></div>
+      <div class="panel-body">
+        <ul class="list-clean checklist">
+          {% for i in items %}
+          <li>
+            <form method="post" action="{{ url_for('thesis.check', item_id=i.id) }}" class="d-flex align-items-start gap-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input class="form-check-input mt-1 flex-none" type="checkbox" id="ci-{{ i.id }}" {{ 'checked' if i.done }} onchange="this.form.requestSubmit()">
+              <label class="form-check-label small {{ 'text-ink-2 text-decoration-line-through' if i.done }}" for="ci-{{ i.id }}">{{ i.text }}{% if i.done_at %} <span class="text-ink-2">· {{ i.done_at|nice_date('%d %b') }}</span>{% endif %}</label>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        <form class="d-flex gap-2 mt-2" method="post" action="{{ url_for('thesis.add_item', code=code) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="visually-hidden" for="add-{{ code }}">New item</label>
+          <input class="form-control form-control-sm" id="add-{{ code }}" name="text" placeholder="Add an item" required>
+          <button class="btn btn-sm btn-outline-secondary" type="submit" aria-label="Add item to {{ list_titles.get(code, code) }}"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+        </form>
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% if history|length > 1 %}
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.js') }}"></script>
+<script>
+(function () {
+  const h = {{ history|tojson }};
+  let chart;
+  function draw() {
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById("wc-chart"), {
+      type: "line",
+      data: { labels: h.map((x) => x.day), datasets: [{ data: h.map((x) => x.words), borderColor: rhToken("--rh-primary"), borderWidth: 2, pointRadius: 0, tension: .25, fill: false }] },
+      options: { maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } },
+                 scales: { x: { display: false }, y: { display: false, beginAtZero: true } } }
+    });
+  }
+  draw();
+  document.addEventListener("rh:theme", draw);
+})();
+</script>
+{% endif %}
+{% endblock %}

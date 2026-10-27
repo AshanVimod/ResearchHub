@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}{{ ref.cite_key }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('refs.index') }}">References</a></li>
+  <li class="breadcrumb-item active font-monospace" aria-current="page">{{ ref.cite_key }}</li>
+</ol></nav>
+
+<div class="page-head">
+  <div class="min-w-0" style="max-width:900px">
+    <div class="eyebrow mb-1">{{ types[ref.ref_type] }}{% if ref.year %} · {{ ref.year }}{% endif %}{% if number %} · <span class="text-body">[{{ number }}]</span> in bibliography{% endif %}</div>
+    <h1 class="page-title" style="font-size:1.75rem">{{ ref.title }}</h1>
+    <p class="page-sub">{% for a in authors %}{{ a.given }} {{ a.family }}{{ ', ' if not loop.last }}{% else %}No authors recorded{% endfor %}</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    {% if has_pdf %}<a class="btn btn-primary" href="{{ url_for('refs.pdf_view', ref_id=ref.id) }}"><i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i>Open PDF</a>{% endif %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('refs.edit', ref_id=ref.id) }}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</a>
+  </div>
+</div>
+
+<section class="panel mb-3" aria-labelledby="ieee-h">
+  <div class="panel-body d-flex flex-wrap gap-3 align-items-start">
+    <div class="flex-grow-1 min-w-0">
+      <h2 class="eyebrow mb-2" id="ieee-h">IEEE</h2>
+      <p class="ieee-out mb-0">{% if number %}<span class="text-ink-2 me-1">[{{ number }}]</span>{% endif %}{{ ieee_html|safe }}</p>
+    </div>
+    <button class="btn btn-outline-secondary" type="button" data-copy="{{ ieee_text }}"><i class="bi bi-clipboard me-1" aria-hidden="true"></i>Copy IEEE</button>
+  </div>
+</section>
+
+{% if duplicates %}
+<div class="rh-alert warning mb-3" role="status"><i class="bi bi-intersect" aria-hidden="true"></i>
+  <span class="msg">Possible duplicate: <a href="{{ url_for('refs.view', ref_id=duplicates[0].id) }}">{{ duplicates[0].cite_key }}</a> has a near-identical title.</span>
+  <form class="ms-auto" method="post" action="{{ url_for('refs.merge', ref_id=ref.id, other_id=duplicates[0].id) }}"
+        data-confirm="Merge these two records? The older one is kept, gets the newer one's non-empty fields, and all links move to it. The newer record is deleted." data-confirm-label="Merge">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="linklike" type="submit">Merge</button></form>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-xl-8">
+    <section class="panel mb-3" aria-labelledby="notes-h">
+      <div class="panel-head"><h2 class="panel-title" id="notes-h"><i class="bi bi-pencil-square" aria-hidden="true"></i>Notes</h2></div>
+      <div class="panel-body" id="notes-box">{% include "refs/_notes.html" %}</div>
+    </section>
+
+    {% if ref.abstract %}
+    <section class="panel mb-3" aria-labelledby="abs-h"><div class="panel-body">
+      <h2 class="eyebrow mb-2" id="abs-h">Abstract</h2><p class="prose small mb-0">{{ ref.abstract }}</p>
+    </div></section>
+    {% endif %}
+
+    <section class="panel mb-3" id="highlights" aria-labelledby="hl-h">
+      <div class="panel-head"><h2 class="panel-title" id="hl-h"><i class="bi bi-highlighter" aria-hidden="true"></i>Highlights</h2></div>
+      <div class="panel-body">
+        {% for h in highlights %}
+        <figure class="hl">
+          <blockquote class="mb-1">{{ h.quote }}</blockquote>
+          <figcaption class="small text-ink-2 d-flex gap-2 align-items-center">
+            {% if h.page %}{% if has_pdf %}<a href="{{ url_for('refs.pdf_view', ref_id=ref.id) }}#page={{ h.page }}">p. {{ h.page }}</a>{% else %}p. {{ h.page }}{% endif %}{% endif %}
+            {% if h.comment %}<span>— {{ h.comment }}</span>{% endif %}
+            <form class="ms-auto" method="post" action="{{ url_for('refs.delete_highlight', ref_id=ref.id, hid=h.id) }}" data-confirm="Delete this highlight?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-ghost" type="submit" aria-label="Delete highlight"><i class="bi bi-x-lg" aria-hidden="true"></i></button></form>
+          </figcaption>
+        </figure>
+        {% else %}<p class="small text-ink-2">No highlights yet. Save quotes you may cite, with their page numbers.</p>{% endfor %}
+        <form class="row g-2 mt-1" method="post" action="{{ url_for('refs.add_highlight', ref_id=ref.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="col-12"><label class="visually-hidden" for="hl-q">Quote</label>
+            <textarea class="form-control" id="hl-q" name="quote" rows="2" placeholder="Quote"></textarea></div>
+          <div class="col-3 col-sm-2"><label class="visually-hidden" for="hl-p">Page</label>
+            <input class="form-control" id="hl-p" name="page" inputmode="numeric" placeholder="Page"></div>
+          <div class="col"><label class="visually-hidden" for="hl-c">Comment</label>
+            <input class="form-control" id="hl-c" name="comment" placeholder="Why it matters (optional)"></div>
+          <div class="col-auto"><button class="btn btn-outline-secondary" type="submit">Add</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel mb-3" aria-labelledby="lm-h">
+      <div class="panel-head"><h2 class="panel-title" id="lm-h"><i class="bi bi-table" aria-hidden="true"></i>Literature matrix</h2>
+        <a class="small" href="{{ url_for('refs.matrix') }}">Open matrix</a></div>
+      <div class="panel-body">
+        <dl class="row small mb-0">
+          {% for k, label in matrix %}<dt class="col-sm-4 text-ink-2 fw-normal">{{ label }}</dt><dd class="col-sm-8">{{ ref[k] or '—' }}</dd>{% endfor %}
+        </dl>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-xl-4">
+    <section class="panel mb-3" aria-labelledby="meta-h"><div class="panel-body">
+      <h2 class="visually-hidden" id="meta-h">Status</h2>
+      <form method="post" action="{{ url_for('refs.quick', ref_id=ref.id) }}" class="row g-2 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-7"><label class="form-label small" for="q-status">Status</label>
+          <select class="form-select" id="q-status" name="status" onchange="this.form.requestSubmit()">
+            {% for k, v in statuses.items() %}<option value="{{ k }}" {{ 'selected' if ref.status == k }}>{{ v }}</option>{% endfor %}</select></div>
+        <div class="col-5"><label class="form-label small" for="q-rating">Rating</label>
+          <select class="form-select" id="q-rating" name="rating" onchange="this.form.requestSubmit()"><option value="">—</option>
+            {% for n in range(1, 6) %}<option value="{{ n }}" {{ 'selected' if ref.rating == n }}>{{ '★' * n }}</option>{% endfor %}</select></div>
+        <div class="col-12"><label class="form-label small" for="q-tags">Tags</label>
+          <div class="d-flex gap-2"><input class="form-control" id="q-tags" name="tags" value="{{ tags }}" placeholder="comma-separated">
+            <button class="btn btn-outline-secondary" type="submit">Save</button></div></div>
+      </form>
+      <dl class="small mt-3 mb-0 meta-dl">
+        {% if ref_chapters %}<dt>Chapters</dt><dd>{% for c in ref_chapters %}<a class="chip text-decoration-none me-1" href="{{ url_for('refs.index', chapter=c.id) }}">{{ c.ordinal }}. {{ c.title }}</a>{% endfor %}</dd>{% endif %}
+        <dt>Cite key</dt><dd class="font-monospace">{{ ref.cite_key }}</dd>
+        {% if ref.doi %}<dt>DOI</dt><dd class="text-break"><a href="https://doi.org/{{ ref.doi }}" target="_blank" rel="noopener">{{ ref.doi }}</a></dd>{% endif %}
+        {% if ref.arxiv_id %}<dt>arXiv</dt><dd><a href="https://arxiv.org/abs/{{ ref.arxiv_id }}" target="_blank" rel="noopener">{{ ref.arxiv_id }}</a></dd>{% endif %}
+        {% if ref.url and not ref.doi %}<dt>URL</dt><dd class="text-break"><a href="{{ ref.url }}" target="_blank" rel="noopener">{{ ref.url }}</a></dd>{% endif %}
+        {% if ref.pdf_path %}<dt>PDF</dt><dd class="text-break">{{ ref.pdf_path }}{% if not has_pdf %} <span class="chip danger">missing</span>{% endif %}</dd>{% endif %}
+        <dt>Added</dt><dd>{{ ref.created_at|nice_date }}</dd>
+      </dl>
+    </div></section>
+
+    <section class="panel mb-3" id="links" aria-labelledby="links-h"><div class="panel-body">
+      <h2 class="h6" id="links-h">Linked</h2>
+      {% macro unlink(kind, id) %}<form method="post" action="{{ url_for('refs.link', ref_id=ref.id) }}" class="ms-auto">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="type" value="{{ kind }}"><input type="hidden" name="id" value="{{ id }}"><input type="hidden" name="unlink" value="1">
+        <button class="btn btn-sm btn-ghost" type="submit" aria-label="Unlink"><i class="bi bi-x-lg" aria-hidden="true"></i></button></form>{% endmacro %}
+      <ul class="list-clean small mb-3">
+        {% for f in files %}<li class="row-item"><i class="bi bi-file-earmark" aria-hidden="true"></i><span class="text-truncate" title="{{ f.rel_path }}">{{ f.name }}</span>{{ unlink('file', f.id) }}</li>{% endfor %}
+        {% for t in tasks %}<li class="row-item"><i class="bi bi-check2-square" aria-hidden="true"></i><a class="text-truncate" href="{{ url_for('tasks.index', edit=t.id) }}">{{ t.title }}</a>{{ unlink('task', t.id) }}</li>{% endfor %}
+        {% for d in diary %}<li class="row-item"><i class="bi bi-journal-text" aria-hidden="true"></i><a href="{{ url_for('diary.view', entry_id=d.id) }}">Meeting {{ d.meeting_date|nice_date }}</a>{{ unlink('diary', d.id) }}</li>{% endfor %}
+        {% if not (files or tasks or diary) %}<li class="text-ink-2">Nothing linked yet.</li>{% endif %}
+      </ul>
+      <form method="post" action="{{ url_for('refs.link', ref_id=ref.id) }}" class="d-flex gap-2" x-data="{ t: 'task' }">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="visually-hidden" for="lk-t">Link type</label>
+        <select class="form-select form-select-sm w-auto" id="lk-t" name="type" x-model="t"><option value="task">Task</option><option value="diary">Meeting</option></select>
+        <label class="visually-hidden" for="lk-task">Task</label>
+        <select class="form-select form-select-sm" id="lk-task" name="id" required x-show="t === 'task'" :disabled="t !== 'task'">
+          {% for t in open_tasks %}<option value="{{ t.id }}">{{ t.title }}</option>{% else %}<option value="">No open tasks</option>{% endfor %}
+        </select>
+        <label class="visually-hidden" for="lk-diary">Meeting</label>
+        <select class="form-select form-select-sm" id="lk-diary" name="id" required x-show="t === 'diary'" x-cloak :disabled="t !== 'diary'">
+          {% for d in recent_diary %}<option value="{{ d.id }}">{{ d.meeting_date|nice_date }}</option>{% else %}<option value="">No meetings yet</option>{% endfor %}
+        </select>
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Link</button>
+      </form>
+    </div></section>
+
+    <form method="post" action="{{ url_for('refs.delete', ref_id=ref.id) }}" data-confirm="Delete {{ ref.cite_key }}? Its notes, highlights and links go too. Linked research files are never touched.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if ref.pdf_path and not ref.pdf_path.startswith(('/', '\\')) and ':' not in ref.pdf_path %}
+      <div class="form-check small mb-2"><input class="form-check-input" type="checkbox" id="del-pdf" name="delete_pdf" value="1">
+        <label class="form-check-label" for="del-pdf">Also delete its copy in data/library</label></div>
+      {% endif %}
+      <button class="btn btn-sm btn-link text-danger px-0" type="submit"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete reference</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

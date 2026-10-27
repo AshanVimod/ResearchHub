@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% import "files/_macros.html" as fm with context %}
+{% block title %}Files{% endblock %}
+{% macro tree_node(node, depth) %}
+  {% for name, sub in node.dirs|dictsort %}
+  <details class="tree-dir"{% if depth < 1 %} open{% endif %}>
+    <summary><i class="bi bi-folder2" aria-hidden="true"></i><span>{{ name }}</span><span class="n">{{ tree_count(sub) }}</span></summary>
+    <div class="tree-children">{{ tree_node(sub, depth + 1) }}</div>
+  </details>
+  {% endfor %}
+  {% for f in node.files %}
+  <div class="tree-file">
+    {{ fm.icon(f.ext) }}
+    <span class="name text-truncate" title="{{ f.rel_path }}">{{ f.name }}</span>
+    {{ fm.status_chip(f) }}
+    {% for t in tags.get(f.id, []) %}<span class="chip">#{{ t }}</span>{% endfor %}
+    <span class="meta num hide-sm">{{ f.size_bytes|filesize }}{% if f.page_count %} · {{ f.page_count }} p.{% endif %}</span>
+    {{ fm.actions(f, request.full_path, refs, tags) }}
+  </div>
+  {% endfor %}
+{% endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Research files</h1>
+    <p class="page-sub">A read-only index of your research folders. The app never changes, moves or deletes your files.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('files.recent') }}"><i class="bi bi-clock-history me-1" aria-hidden="true"></i>Recent</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('files.duplicates') }}"><i class="bi bi-files me-1" aria-hidden="true"></i>Duplicates{% if dup_count %} <span class="chip warning ms-1">{{ dup_count }}</span>{% endif %}</a>
+  </div>
+</div>
+
+{% include "files/_status.html" %}
+
+<div class="strip my-3" style="grid-template-columns: repeat(3, minmax(0,1fr))">
+  <div><div class="eyebrow mb-1">Indexed files</div><div class="stat num">{{ (stats.n or 0) - (stats.m or 0) }}</div></div>
+  <div><div class="eyebrow mb-1">Total size</div><div class="stat num">{{ stats.b|filesize }}</div></div>
+  <div><div class="eyebrow mb-1">Problems</div><div class="stat num">{{ stats.e or 0 }} <small>errors</small> {{ stats.m or 0 }} <small>missing</small></div></div>
+</div>
+
+<form class="d-flex flex-wrap gap-2 mb-3 align-items-center" method="get" aria-label="Filter files">
+  <input type="hidden" name="view" value="{{ f.view }}">
+  <label class="visually-hidden" for="fq">Filter by name or path</label>
+  <input class="form-control form-control-sm" style="max-width:260px" id="fq" name="q" type="search" value="{{ f.q }}" placeholder="Filter by name or folder">
+  <label class="visually-hidden" for="fext">Type</label>
+  <select class="form-select form-select-sm w-auto" id="fext" name="ext" onchange="this.form.submit()">
+    <option value="">All types</option>{% for e in exts %}<option value="{{ e }}" {{ 'selected' if f.ext == e }}>{{ e or '(none)' }}</option>{% endfor %}
+  </select>
+  <label class="visually-hidden" for="fst">Status</label>
+  <select class="form-select form-select-sm w-auto" id="fst" name="status" onchange="this.form.submit()">
+    <option value="">Present</option><option value="missing" {{ 'selected' if f.status == 'missing' }}>Missing (renamed or deleted)</option>
+  </select>
+  <button class="btn btn-sm btn-outline-secondary" type="submit">Filter</button>
+  <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="View">
+    <a class="btn btn-outline-secondary{{ ' active' if f.view != 'flat' }}" href="{{ url_for('files.index', **dict(f, view='')) }}"><i class="bi bi-diagram-3 me-1" aria-hidden="true"></i>Tree</a>
+    <a class="btn btn-outline-secondary{{ ' active' if f.view == 'flat' }}" href="{{ url_for('files.index', **dict(f, view='flat')) }}"><i class="bi bi-list-ul me-1" aria-hidden="true"></i>Table</a>
+  </div>
+</form>
+
+{% if not rows %}
+  <div class="panel"><div class="empty"><i class="bi bi-folder2-open" aria-hidden="true"></i>
+    {% if f.q or f.ext or f.status %}<h3>No files match</h3><a class="btn btn-outline-secondary" href="{{ url_for('files.index') }}">Clear filters</a>
+    {% elif not roots %}<h3>No research folder set</h3><p>Add your research folder in Settings, then scan it.</p><a class="btn btn-primary" href="{{ url_for('settings.index') }}">Open settings</a>
+    {% else %}<h3>Nothing indexed yet</h3><p>Folders: {{ roots|join(', ') }}. Press <strong>Re-scan now</strong> above.</p>{% endif %}
+  </div></div>
+{% elif f.view == 'flat' %}
+  <div class="panel"><div class="table-responsive">
+    <table class="table table-hover table-sm files-table">
+      <thead><tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col" class="text-end">Size</th><th scope="col">Modified</th><th scope="col" class="text-end">Pages</th><th scope="col">Tags / reference</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="min-w-0"><div class="d-flex align-items-center gap-2">{{ fm.icon(r.ext) }}<span class="text-truncate" style="max-width:380px" title="{{ r.rel_path }}">{{ r.rel_path }}</span>{{ fm.status_chip(r) }}</div></td>
+        <td class="small text-ink-2">{{ r.ext }}</td>
+        <td class="text-end num small">{{ r.size_bytes|filesize }}</td>
+        <td class="small num text-nowrap">{{ r.mtime|timestamp('%d %b %Y') }}</td>
+        <td class="text-end num small">{{ r.page_count or '' }}</td>
+        <td>{% for t in tags.get(r.id, []) %}<span class="chip me-1">#{{ t }}</span>{% endfor %}{% for x in refs.get(r.id, []) %}<a class="chip primary text-decoration-none" href="{{ url_for('refs.view', ref_id=x.id) }}">{{ x.cite_key }}</a>{% endfor %}</td>
+        <td class="text-end">{{ fm.actions(r, request.full_path, None, tags) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+{% else %}
+  {% for root, tree in trees.items() %}
+  <section class="panel mb-3" aria-label="Folder {{ root }}">
+    <div class="panel-head"><h2 class="panel-title text-truncate"><i class="bi bi-hdd" aria-hidden="true"></i><span class="text-truncate">{{ root }}</span></h2>
+      <span class="small text-ink-2 num">{{ tree_count(tree) }} files</span></div>
+    <div class="panel-body tree">{{ tree_node(tree, 0) }}</div>
+  </section>
+  {% endfor %}
+{% endif %}
+{% endblock %}

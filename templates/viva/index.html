@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Viva prep{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Viva preparation</h1>
+    <p class="page-sub">15-minute presentation plus 5 minutes of questions. The first slide shows the title, your supervisor and your index number.</p>
+  </div>
+  <a class="btn btn-primary{{ ' disabled' if not questions and not f_cat }}" href="{{ url_for('viva.drill') }}"><i class="bi bi-shuffle me-1" aria-hidden="true"></i>Drill questions</a>
+</div>
+
+<div class="row g-3 mb-3">
+  <section class="col-lg-7" id="timer" aria-labelledby="timer-h">
+    <div class="panel h-100" x-data="practiceTimer({{ talk }}, {{ qa }}, {{ warn }})">
+      <div class="panel-head"><h2 class="panel-title" id="timer-h"><i class="bi bi-stopwatch" aria-hidden="true"></i>Practice timer</h2>
+        <span class="chip" :class="phase === 'qa' ? 'primary' : ''" x-text="phase === 'qa' ? 'Q&A' : 'Presentation'"></span></div>
+      <div class="panel-body">
+        <div class="practice-clock num" :class="state" role="timer" aria-live="off" x-text="display">15:00</div>
+        <p class="text-center small mb-3" :class="state === 'over' ? 'text-danger fw-semibold' : 'text-ink-2'" x-text="hint"></p>
+        <div class="visually-hidden" aria-live="assertive" x-text="announce"></div>
+        <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+          <button class="btn btn-primary px-4" type="button" @click="toggle()" x-text="running ? 'Pause' : (started ? 'Resume' : 'Start')">Start</button>
+          <button class="btn btn-outline-secondary" type="button" @click="toQA()" x-show="phase === 'talk' && started">End talk → Q&amp;A</button>
+          <button class="btn btn-ghost" type="button" @click="reset()" x-show="started">Reset</button>
+        </div>
+        <form method="post" action="{{ url_for('viva.save_run') }}" x-show="talkUsed > 0" x-cloak class="border-top pt-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="talk_seconds" :value="talkUsed">
+          <p class="small mb-2">Presentation took <strong x-text="fmt(talkUsed)"></strong><span x-show="talkUsed > talk" class="text-danger"> (<span x-text="fmt(talkUsed - talk)"></span> over)</span>.</p>
+          <label class="form-label small" for="run-notes">Notes on this run</label>
+          <textarea class="form-control mb-2" id="run-notes" name="notes" rows="2" placeholder="Rushed the results slide; method explanation too long"></textarea>
+          <button class="btn btn-outline-secondary" type="submit">Save practice run</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="col-lg-5" id="slides" aria-labelledby="slides-h">
+    {% set done = slides|selectattr('done')|list|length %}
+    <div class="panel h-100">
+      <div class="panel-head"><h2 class="panel-title" id="slides-h"><i class="bi bi-easel" aria-hidden="true"></i>Slide checklist</h2>
+        <span class="small num {{ 'text-success fw-semibold' if done == slides|length else 'text-ink-2' }}">{{ done }}/{{ slides|length }}</span></div>
+      <div class="panel-body">
+        <ol class="list-clean checklist">
+          {% for i in slides %}
+          <li><form method="post" action="{{ url_for('thesis.check', item_id=i.id) }}" class="d-flex align-items-start gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="form-check-input mt-1 flex-none" type="checkbox" id="vs-{{ i.id }}" {{ 'checked' if i.done }} onchange="this.form.requestSubmit()">
+            <label class="form-check-label small {{ 'text-ink-2 text-decoration-line-through' if i.done }}" for="vs-{{ i.id }}"><span class="num text-ink-2 me-1">{{ loop.index }}.</span>{{ i.text }}</label>
+          </form></li>
+          {% endfor %}
+        </ol>
+        <form class="d-flex gap-2 mt-2" method="post" action="{{ url_for('thesis.add_item', code='VIVA_SLIDES') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="visually-hidden" for="vs-add">New slide item</label>
+          <input class="form-control form-control-sm" id="vs-add" name="text" placeholder="Add an item" required>
+          <button class="btn btn-sm btn-outline-secondary" type="submit" aria-label="Add slide item"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="panel mb-3" id="questions" aria-labelledby="q-h">
+  <div class="panel-head flex-wrap">
+    <h2 class="panel-title" id="q-h"><i class="bi bi-patch-question" aria-hidden="true"></i>Question bank</h2>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <span class="small text-ink-2">{% for k, v in confidence.items() %}{{ v }} {{ counts.get(k, 0) }}{{ ' · ' if not loop.last }}{% endfor %}</span>
+      <form method="get" action="{{ url_for('viva.index') }}#questions">
+        <label class="visually-hidden" for="q-cat">Category</label>
+        <select class="form-select form-select-sm" id="q-cat" name="category" onchange="this.form.submit()"><option value="">All categories</option>
+          {% for k, v in categories.items() %}<option value="{{ k }}" {{ 'selected' if f_cat == k }}>{{ v }}</option>{% endfor %}</select></form>
+      <button class="btn btn-sm btn-primary" type="button" onclick="rhOpenForm('{{ url_for('viva.new_question', category=f_cat or None) }}')"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add question</button>
+    </div>
+  </div>
+  <div class="panel-body pt-2">
+    {% for q in questions %}
+    <details class="qa-item">
+      <summary>
+        <span class="conf conf-{{ q.confidence }}" title="{{ confidence[q.confidence] }}"><span class="visually-hidden">Confidence: </span>{{ confidence[q.confidence] }}</span>
+        <span class="flex-grow-1">{{ q.question }}</span>
+        <span class="chip">{{ categories.get(q.category, q.category) }}</span>
+      </summary>
+      <div class="qa-answer">
+        {% if q.answer %}<div class="prose small">{{ q.answer|md }}</div>{% else %}<p class="small text-ink-2 mb-2">No prepared answer yet.</p>{% endif %}
+        <button class="btn btn-sm btn-outline-secondary mt-2" type="button" onclick="rhOpenForm('{{ url_for('viva.edit_question', qid=q.id) }}')">Edit</button>
+      </div>
+    </details>
+    {% else %}
+    <div class="empty"><i class="bi bi-patch-question" aria-hidden="true"></i><h3>No questions yet</h3>
+      <p>Write down the questions examiners are likely to ask, e.g. “Why did you choose this dataset?”, with your prepared answers.</p>
+      <button class="btn btn-primary" type="button" onclick="rhOpenForm('{{ url_for('viva.new_question') }}')">Add your first question</button></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel" id="runs" aria-labelledby="runs-h">
+  <div class="panel-head"><h2 class="panel-title" id="runs-h"><i class="bi bi-clock-history" aria-hidden="true"></i>Practice runs</h2></div>
+  <div class="panel-body py-1">
+    {% for r in runs %}
+    {% set over = r.talk_seconds - talk %}
+    <div class="row-item">
+      <span class="num fw-semibold">{{ mmss(r.talk_seconds) }}</span>
+      {% if over > 0 %}<span class="chip danger">{{ mmss(over) }} over</span>{% elif over > -120 %}<span class="chip success">On time</span>{% else %}<span class="chip warning">{{ mmss(-over) }} short</span>{% endif %}
+      <span class="small text-ink-2 text-truncate">{{ r.notes or '' }}</span>
+      <span class="meta">{{ r.run_at.replace('T', ' ')[:16] }}</span>
+      <form method="post" action="{{ url_for('viva.delete_run', run_id=r.id) }}" data-confirm="Delete this practice run?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-ghost btn-icon" type="submit" aria-label="Delete practice run"><i class="bi bi-x-lg" aria-hidden="true"></i></button></form>
+    </div>
+    {% else %}<p class="small text-ink-2 py-3 mb-0">No practice runs yet. Use the timer above, then save the run with notes.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+window.practiceTimer = function (talk, qa, warn) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const fmt = (s) => { const a = Math.abs(s); return `${s < 0 ? "+" : ""}${Math.floor(a / 60)}:${pad(a % 60)}`; };
+  return {
+    talk, qa, phase: "talk", running: false, started: false, elapsed: 0, talkUsed: 0, t0: 0, base: 0, timer: null, announce: "",
+    fmt: (s) => `${Math.floor(s / 60)}:${pad(s % 60)}`,
+    get limit() { return this.phase === "talk" ? this.talk : this.qa; },
+    get remaining() { return this.limit - this.elapsed; },
+    get display() { return fmt(this.remaining); },
+    get state() { return this.remaining <= 0 ? "over" : (this.phase === "talk" && this.remaining <= warn ? "warn" : ""); },
+    get hint() {
+      if (!this.started) return "Press Start when you begin speaking.";
+      if (this.state === "over") return this.phase === "talk" ? "Time is up: you are in overtime." : "Questions time is over.";
+      if (this.state === "warn") return "Two minutes left: start concluding.";
+      return this.phase === "talk" ? "Presentation in progress" : "Questions and answers";
+    },
+    tick() {
+      const prev = this.remaining;
+      this.elapsed = this.base + Math.floor((Date.now() - this.t0) / 1000);
+      if (this.phase === "talk") this.talkUsed = this.elapsed;
+      if (this.phase === "talk" && prev > warn && this.remaining <= warn) this.announce = "Two minutes left.";
+      if (prev > 0 && this.remaining <= 0) this.announce = this.phase === "talk" ? "Time is up." : "Question time is over.";
+    },
+    toggle() {
+      if (this.running) { this.tick(); this.base = this.elapsed; clearInterval(this.timer); this.running = false; return; }
+      this.t0 = Date.now(); this.running = true; this.started = true;
+      this.timer = setInterval(() => this.tick(), 250);
+    },
+    toQA() {
+      this.tick(); this.talkUsed = this.elapsed; clearInterval(this.timer);
+      this.phase = "qa"; this.elapsed = 0; this.base = 0; this.t0 = Date.now(); this.running = true;
+      this.timer = setInterval(() => this.tick(), 250);
+      this.announce = "Question and answer time started.";
+    },
+    reset() { clearInterval(this.timer); Object.assign(this, { phase: "talk", running: false, started: false, elapsed: 0, base: 0, talkUsed: 0, announce: "" }); },
+  };
+};
+</script>
+{% endblock %}

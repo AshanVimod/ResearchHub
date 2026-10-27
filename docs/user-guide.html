@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Research Hub Guide</title>
+<!-- Source of Research_Hub_Guide.pdf. Rebuild: .venv\Scripts\python docsuild_guide.py -->
+<style>
+@font-face { font-family: "EB Garamond"; font-weight: 500; src: url("../static/vendor/fonts/eb-garamond-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "EB Garamond"; font-weight: 500; font-style: italic; src: url("../static/vendor/fonts/eb-garamond-latin-500-italic.woff2") format("woff2"); }
+@font-face { font-family: "EB Garamond"; font-weight: 600; src: url("../static/vendor/fonts/eb-garamond-latin-600-normal.woff2") format("woff2"); }
+
+:root { --navy: #1E3A5F; --amber: #965a05; --amber-bg: #fdf4e3; --ink: #1f2933; --ink-2: #52606d; --line: #d9dee4; --tint: #f4f6f8; }
+@page { size: A4; margin: 15mm 15mm 15mm 15mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; font-family: "Segoe UI", Calibri, Arial, sans-serif; font-size: 10pt; line-height: 1.5; color: var(--ink); background: #fff; }
+h1, h2, h3 { font-family: "EB Garamond", Georgia, serif; color: var(--navy); font-weight: 600; line-height: 1.2; }
+h2 { font-size: 21pt; margin: 0 0 4mm; padding-bottom: 2mm; border-bottom: 2px solid var(--navy); break-after: avoid; }
+h2 .n { color: var(--amber); margin-right: 3mm; }
+h3 { font-size: 13.5pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+p { margin: 0 0 2.5mm; }
+ul, ol { margin: 0 0 3mm; padding-left: 5.5mm; }
+li { margin-bottom: 1mm; }
+code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 8.8pt; background: var(--tint); padding: 0 1mm; border-radius: 2px; overflow-wrap: anywhere; }
+pre { font-family: Consolas, monospace; font-size: 8.6pt; background: var(--tint); border-left: 3px solid var(--navy); padding: 2.5mm 3mm; margin: 0 0 3mm; white-space: pre-wrap; overflow-wrap: anywhere; break-inside: avoid; }
+pre code { background: none; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin: 0 0 4mm; font-size: 9pt; break-inside: auto; }
+th { text-align: left; background: var(--navy); color: #fff; font-weight: 600; padding: 1.3mm 2mm; }
+td { padding: 1.2mm 2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr { break-inside: avoid; }
+tbody tr:nth-child(even) td { background: #fafbfc; }
+.kbd { font-family: Consolas, monospace; font-size: 8.5pt; border: 1px solid #b8c0c9; border-bottom-width: 2px; border-radius: 3px; padding: 0 1.2mm; background: #fff; white-space: nowrap; }
+.note { border-left: 3px solid var(--amber); background: var(--amber-bg); padding: 2.5mm 3.5mm; margin: 0 0 4mm; break-inside: avoid; }
+.note strong:first-child { color: var(--amber); }
+.section { break-before: page; }
+.section.flow { break-before: auto; margin-top: 9mm; }
+.muted { color: var(--ink-2); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.card { border: 1px solid var(--line); border-top: 3px solid var(--navy); padding: 3mm 3.5mm; break-inside: avoid; }
+.card h3 { margin-top: 0; }
+.module { break-inside: avoid; margin-bottom: 3mm; }
+.module h3 { display: flex; align-items: baseline; gap: 2mm; }
+.module h3 .where { font-family: "Segoe UI", sans-serif; font-size: 8.5pt; color: var(--ink-2); font-weight: 400; }
+.steps { counter-reset: s; list-style: none; padding-left: 0; }
+.steps li { counter-increment: s; position: relative; padding-left: 8mm; margin-bottom: 2mm; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 0.2mm; width: 5mm; height: 5mm; border-radius: 50%; background: var(--navy); color: #fff; font-size: 8pt; font-weight: 600; text-align: center; line-height: 5mm; }
+
+/* cover */
+.cover { height: 265mm; display: flex; flex-direction: column; }
+.cover .band { background: var(--navy); color: #fff; padding: 16mm 12mm 14mm; border-radius: 2mm; }
+.cover .mark { display: inline-block; width: 16mm; height: 16mm; border-radius: 3.5mm; background: #c47a0a; color: #fff; font-family: "EB Garamond", serif; font-weight: 600; font-size: 30pt; line-height: 16mm; text-align: center; margin-bottom: 8mm; }
+.cover h1 { color: #fff; font-size: 40pt; margin: 0 0 2mm; }
+.cover .sub { font-family: "EB Garamond", serif; font-style: italic; font-size: 16pt; color: #d6e0ec; }
+.cover .meta { margin-top: 12mm; font-size: 10pt; }
+.cover .meta td { border: 0; padding: 1mm 4mm 1mm 0; background: none !important; }
+.cover .meta td:first-child { color: var(--ink-2); width: 42mm; }
+.cover .foot { margin-top: auto; color: var(--ink-2); font-size: 9pt; border-top: 1px solid var(--line); padding-top: 3mm; }
+.toc { columns: 2; column-gap: 8mm; padding-left: 0; list-style: none; margin-top: 10mm; }
+.toc li { break-inside: avoid; padding: 1mm 0; border-bottom: 1px dotted var(--line); }
+.toc .n { color: var(--amber); font-weight: 600; display: inline-block; width: 7mm; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="cover">
+  <div class="band">
+    <div class="mark">R</div>
+    <h1>Research Hub</h1>
+    <div class="sub">Installation and configuration guide</div>
+  </div>
+  <table class="meta">
+    <tr><td>What it is</td><td>A private, offline web app for managing a final-year research project: deadlines, supervisor diary, tasks, hours, references, files, thesis, experiments and viva practice.</td></tr>
+    <tr><td>Runs on</td><td>Windows 10 or 11, in your own browser, at <code>http://127.0.0.1:8000</code> (your computer only)</td></tr>
+    <tr><td>Created by</td><td>Vimod R.A</td></tr>
+    <tr><td>WhatsApp</td><td>0717869097</td></tr>
+    <tr><td>Gmail</td><td>ashanvimod01@gmail.com</td></tr>
+    <tr><td>License</td><td>MIT: free to use, copy and modify; keep the copyright notice</td></tr>
+    <tr><td>Guide date</td><td>October 2026</td></tr>
+  </table>
+  <ol class="toc">
+    <li><span class="n">1</span>Quick reference card</li>
+    <li><span class="n">2</span>Installing (first time)</li>
+    <li><span class="n">3</span>Starting and stopping</li>
+    <li><span class="n">4</span>Setting up your project</li>
+    <li><span class="n">5</span>Features, page by page</li>
+    <li><span class="n">6</span>Your data: where it is saved</li>
+    <li><span class="n">7</span>Backup and restore</li>
+    <li><span class="n">8</span>Jupyter logging and semantic search</li>
+    <li><span class="n">9</span>Shortcuts, search syntax, troubleshooting</li>
+    <li><span class="n">10</span>Technical reference and credits</li>
+  </ol>
+  <div class="foot"><em>Wishing you a focused, calm and successful research journey. Good luck with your viva!</em> · Vimod R.A</div>
+</div>
+
+<!-- ============ 1 QUICK REFERENCE ============ -->
+<section class="section">
+<h2><span class="n">1</span>Quick reference card</h2>
+<p class="muted">In this guide, <strong>the app folder</strong> means the folder where you put Research Hub, for example <code>C:\ResearchHub</code>.</p>
+<table>
+  <thead><tr><th style="width:34%">I want to…</th><th>Do this</th></tr></thead>
+  <tbody>
+    <tr><td>Install it</td><td>Install Python, download the code, double-click <code>start.bat</code> once (section 2).</td></tr>
+    <tr><td>See it with example data first</td><td>Double-click <code>demo.bat</code>. It opens a separate demo on port 8010 with a made-up project.</td></tr>
+    <tr><td>Open the app</td><td>Double-click <strong>Research Hub</strong> on your desktop. The browser opens on <code>http://127.0.0.1:8000</code>.</td></tr>
+    <tr><td>Stop the app</td><td><strong>Settings → Your data → Quit Research Hub</strong>. Closing the browser tab does <em>not</em> stop it; signing out or shutting down does.</td></tr>
+    <tr><td>Save my work</td><td>Nothing to do. Every Save, tick, drag or timer stop is written immediately.</td></tr>
+    <tr><td>See where data is stored</td><td><strong>Settings → Your data</strong> (paths, sizes, record counts, <em>Open data folder</em>).</td></tr>
+    <tr><td>The main data file</td><td><code>&lt;app folder&gt;\data\research.db</code></td></tr>
+    <tr><td>Make a backup</td><td><strong>Settings → Backup → Back up now</strong> (also automatic once a day).</td></tr>
+    <tr><td>Capture a quick idea</td><td><span class="kbd">Alt</span>+<span class="kbd">N</span> from any page; sort it later in <strong>Inbox</strong>.</td></tr>
+    <tr><td>Start or stop the work timer</td><td><span class="kbd">Alt</span>+<span class="kbd">T</span>, or the timer in the top bar.</td></tr>
+    <tr><td>Search everything</td><td><span class="kbd">/</span> then type. Use <code>"exact phrase"</code> and <code>-exclude</code>.</td></tr>
+    <tr><td>Export diary, bibliography, matrix</td><td>Diary → <em>Export semester</em> (Word) · References → <em>Bibliography</em> (Word/.bib) · Matrix → CSV/Excel. Files land in <code>data\exports</code>.</td></tr>
+    <tr><td>See all keyboard shortcuts</td><td>Press <span class="kbd">?</span> in the app.</td></tr>
+    <tr><td>Get help</td><td>WhatsApp 0717869097 or ashanvimod01@gmail.com (Vimod R.A).</td></tr>
+  </tbody>
+</table>
+<div class="grid2">
+  <div class="card">
+    <h3>Important folders</h3>
+    <ul>
+      <li><code>&lt;app folder&gt;\</code>: the app itself</li>
+      <li><code>&lt;app folder&gt;\data\</code>: all your data</li>
+      <li><code>&lt;app folder&gt;\backups\</code>: backup zips (default)</li>
+      <li><code>&lt;app folder&gt;\sample-data\</code>: the demo only</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Three rules worth remembering</h3>
+    <ul>
+      <li>Never delete the <code>data</code> folder: it <em>is</em> your work.</li>
+      <li>Point the backup folder at OneDrive or Google Drive so a copy leaves the laptop.</li>
+      <li>Quit the app before restoring a backup or editing <code>research.db</code>.</li>
+    </ul>
+  </div>
+</div>
+</section>
+
+<!-- ============ 2 INSTALL ============ -->
+<section class="section">
+<h2><span class="n">2</span>Installing (first time)</h2>
+<p>You need a Windows computer and an internet connection for the first setup only. After that the app works offline.</p>
+
+<h3>Step 1: install Python</h3>
+<ol class="steps">
+  <li>Go to <code>https://www.python.org/downloads/</code> and download Python 3.11 or newer (tested with 3.13).</li>
+  <li>Run the installer. On the first screen, <strong>tick "Add python.exe to PATH"</strong>, then click <em>Install Now</em>.</li>
+</ol>
+
+<h3>Step 2: get the code</h3>
+<p><strong>Option A (easiest), download a ZIP:</strong></p>
+<ol class="steps">
+  <li>Open <code>https://github.com/AshanVimod/ResearchHub</code>, click the green <strong>Code</strong> button, then <strong>Download ZIP</strong>.</li>
+  <li>Right-click the downloaded file → <em>Extract All…</em>. Move the extracted folder somewhere permanent and give it a short name, for example <code>C:\ResearchHub</code>.</li>
+</ol>
+<p><strong>Option B, with Git</strong> (makes updating easy later):</p>
+<pre>git clone https://github.com/AshanVimod/ResearchHub.git C:\ResearchHub</pre>
+<div class="note"><strong>Tip.</strong> Avoid a path with special characters, and don't run it from inside the ZIP file. A folder under OneDrive works, but a plain folder such as <code>C:\ResearchHub</code> is simplest.</div>
+
+<h3>Step 3: run start.bat once</h3>
+<ol class="steps">
+  <li>Open the app folder and double-click <strong><code>start.bat</code></strong>. If Windows shows "Windows protected your PC", click <em>More info</em> → <em>Run anyway</em>.</li>
+  <li>A black window shows progress. It creates a private Python environment (<code>.venv</code>) and installs the required packages; this takes a few minutes.</li>
+  <li>It then puts a <strong>Research Hub</strong> shortcut (amber "R" icon) on your desktop and opens the app in your browser.</li>
+</ol>
+<p>From now on, just double-click the desktop shortcut. You never need <code>start.bat</code> again unless you move the folder or delete <code>.venv</code>.</p>
+
+<h3>Step 4 (optional): explore the demo</h3>
+<p>Double-click <strong><code>demo.bat</code></strong> to open a <em>separate</em> copy filled with a made-up project ("Forecasting Urban Air Quality with Low-Cost Sensors"): references, diary entries, tasks, logged hours, labels, experiment runs, viva questions and a small sample research folder. It runs on <code>http://127.0.0.1:8010</code> and stores everything in <code>sample-data\</code>, so your real data is never touched. Delete the <code>sample-data</code> folder to reset it. Quit it from its own Settings page.</p>
+</section>
+
+<!-- ============ 3 STARTING ============ -->
+<section class="section">
+<h2><span class="n">3</span>Starting and stopping</h2>
+<h3>The normal way: the desktop shortcut</h3>
+<ol class="steps">
+  <li>Double-click <strong>Research Hub</strong> on your desktop.</li>
+  <li>If the app is not running, it starts silently in the background. There is no console window to keep open.</li>
+  <li>Your browser opens at <code>http://127.0.0.1:8000</code>. If the app was already running, you just get a new tab.</li>
+</ol>
+<p>You can right-click the shortcut and choose <em>Pin to taskbar</em> or <em>Pin to Start</em>. If something is wrong, the shortcut shows a Windows message box (for example "run start.bat first" when the Python environment is missing).</p>
+
+<h3>Stopping the app</h3>
+<ul>
+  <li><strong>Settings → Your data → Quit Research Hub</strong>, then confirm. A "Research Hub has stopped" page appears.</li>
+  <li>Signing out of Windows or shutting down also stops it. Nothing is lost, because everything is already saved.</li>
+  <li>Closing the browser tab leaves the app running quietly in the background (very little memory or CPU).</li>
+</ul>
+
+<h3>Recreating the shortcut</h3>
+<p>If the shortcut is deleted, or you moved the app folder, run <code>start.bat</code> again, or in PowerShell:</p>
+<pre>powershell -ExecutionPolicy Bypass -File "C:\ResearchHub\scripts\make_shortcut.ps1"</pre>
+<p class="muted">Add <code>-Folder "D:\Somewhere"</code> to put the shortcut in another folder.</p>
+
+<h3>Start automatically when Windows starts (optional)</h3>
+<p>Press <span class="kbd">Win</span>+<span class="kbd">R</span>, type <code>shell:startup</code>, press Enter, and copy the shortcut into that folder.</p>
+
+<h3>Starting by hand (for troubleshooting)</h3>
+<pre>cd C:\ResearchHub
+.venv\Scripts\python app.py</pre>
+<p class="muted">Error messages then appear in the window. Stop with <span class="kbd">Ctrl</span>+<span class="kbd">C</span>.</p>
+
+<div class="note"><strong>What happens on every start-up.</strong> The app applies any pending database updates, makes an automatic backup if the last one is more than 24 hours old, imports experiment runs queued while it was closed, and about 10 seconds later scans your research folders for new or changed files (then every 30 minutes).</div>
+</section>
+
+<!-- ============ 4 CONFIGURATION ============ -->
+<section class="section">
+<h2><span class="n">4</span>Setting up your project</h2>
+<p>On the very first start the app opens the <strong>Welcome</strong> page. Only the <strong>project start date</strong> is required: week numbers ("Week 9 of 34"), the current phase and all milestone dates are calculated from it. Fill in your title, name and supervisor too, then press <strong>Start</strong>. Everything can be changed later on the <strong>Settings</strong> page. Settings are stored in the database, not in a file.</p>
+
+<h3>All settings</h3>
+<table>
+  <thead><tr><th style="width:27%">Setting</th><th style="width:20%">Default</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td colspan="3" style="background:var(--tint);font-weight:600;color:var(--navy)">Project</td></tr>
+    <tr><td>Project title</td><td>empty</td><td>Shown on the dashboard and on Word exports.</td></tr>
+    <tr><td>Student name / Registration no.</td><td>empty</td><td>Used on exports, in the sidebar and on the viva title-slide checklist.</td></tr>
+    <tr><td>Supervisor</td><td>empty</td><td>Default attendee for new diary entries.</td></tr>
+    <tr><td><strong>Project start date</strong></td><td>(required)</td><td>Week 1 of the 34-week timeline; milestones follow it.</td></tr>
+    <tr><td colspan="3" style="background:var(--tint);font-weight:600;color:var(--navy)">Semesters</td></tr>
+    <tr><td>Semester 1 / 2 start and end</td><td>empty</td><td>Decides which diary entries go in each semester export, and the pace alert for signed meetings.</td></tr>
+    <tr><td colspan="3" style="background:var(--tint);font-weight:600;color:var(--navy)">Targets and reminders</td></tr>
+    <tr><td>Hours target</td><td>400</td><td>Drives the hours bar on the dashboard and the Time page.</td></tr>
+    <tr><td>Meeting gap alert (days)</td><td>14</td><td>Red alert when there has been no supervisor meeting for this long and none is planned.</td></tr>
+    <tr><td>Signed meetings per semester</td><td>5</td><td>Target for the diary pace alert.</td></tr>
+    <tr><td colspan="3" style="background:var(--tint);font-weight:600;color:var(--navy)">Files and backup</td></tr>
+    <tr><td>Research folders</td><td>empty</td><td>One folder per line, e.g. <code>C:\Users\you\Documents\Research</code>. Indexed <em>read-only</em> for the Files page and search.</td></tr>
+    <tr><td>Thesis .docx path</td><td>empty</td><td>Your thesis Word file; the Thesis page counts its words per chapter.</td></tr>
+    <tr><td>Backup folder</td><td>empty = <code>backups\</code></td><td>Set this to a OneDrive or Google Drive folder so backups leave the laptop.</td></tr>
+    <tr><td>Backups to keep</td><td>10</td><td>Older zips beyond this number are removed.</td></tr>
+    <tr><td>Indexer excludes</td><td><code>.git, .venv, *.tmp, ~$*</code>…</td><td>Folder and file patterns the scanner skips.</td></tr>
+    <tr><td>Max text file size (MB)</td><td>5</td><td>Larger plain-text files are listed but not read for search.</td></tr>
+    <tr><td colspan="3" style="background:var(--tint);font-weight:600;color:var(--navy)">Integrations</td></tr>
+    <tr><td>Crossref contact e-mail</td><td>empty</td><td>Optional; sent with DOI lookups for Crossref's faster "polite pool".</td></tr>
+    <tr><td>Semantic search</td><td>off</td><td>Turns on "Meaning" search (needs extra packages; section 8).</td></tr>
+  </tbody>
+</table>
+
+<h3>Milestones</h3>
+<p>The <strong>Milestones</strong> panel on Settings lists a typical 34-week final-year plan (outline, proposal defence, mid-term review, draft and final thesis, viva, diary, optional IEEE paper) with week ranges and marks weights. Dates follow the start date automatically. When your coordinator announces a real date, type it in and press Save: it becomes <em>Overridden</em> and stays fixed. <em>Reset</em> makes it follow the start date again. Each milestone also has a status.</p>
+
+<h3>Advanced: environment variables</h3>
+<table>
+  <thead><tr><th style="width:30%">Variable</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>RESEARCH_HUB_DATA</code></td><td>Use a different data folder (this is how <code>demo.bat</code> works). Default: <code>data\</code>.</td></tr>
+    <tr><td><code>RESEARCH_HUB_PORT</code></td><td>Use a different port. Default: <code>8000</code>.</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ============ 5 FEATURES ============ -->
+<section class="section">
+<h2><span class="n">5</span>Features, page by page</h2>
+<p class="muted">The top bar on every page has the search box, quick capture, the work timer and the light/dark theme switch.</p>
+
+<h3 style="color:var(--amber);font-size:11pt;letter-spacing:.04em;text-transform:uppercase;font-family:'Segoe UI',sans-serif">Overview</h3>
+<div class="module"><h3>Dashboard</h3>
+<ul>
+  <li>"Week N of 34", the current phase and a 34-week timeline with every milestone.</li>
+  <li>Alerts: no supervisor meeting for too long, behind pace on signed meetings, diary entries older than 7 days still unsigned, overdue tasks.</li>
+  <li>Next deadline, today's tasks and hours logged toward your target.</li>
+</ul></div>
+<div class="module"><h3>Calendar</h3>
+<ul><li>Month, week and list views of milestones, meetings and task due dates. Drag a task to change its due date.</li></ul></div>
+
+<h3 style="color:var(--amber);font-size:11pt;letter-spacing:.04em;text-transform:uppercase;font-family:'Segoe UI',sans-serif">Supervision</h3>
+<div class="module"><h3>Diary <span class="where">supervisor meeting record</span></h3>
+<ul>
+  <li>One entry per meeting: date, mode, attendees, agenda, discussion, decisions, feedback, reflection and action items.</li>
+  <li>Each action row becomes a task automatically (saving again never duplicates). Mark entries as <em>signed</em>; link references and files.</li>
+  <li><strong>Export</strong> one entry, or a whole semester as a Word file with a cover page and one meeting per page.</li>
+</ul></div>
+<div class="module"><h3>Tasks <span class="where">Kanban board</span></h3>
+<ul><li>Columns <em>To do</em>, <em>Doing</em>, <em>Done</em>. Drag cards between columns; Done stamps the completion date. Due dates, priorities, thesis chapter.</li></ul></div>
+<div class="module"><h3>Time <span class="where">hours log</span></h3>
+<ul><li>Timer in the top bar (<span class="kbd">Alt</span>+<span class="kbd">T</span>) with categories: reading, coding, data, writing, meeting, experiments, presentation, admin. Add or correct entries by hand. A timer left running over 12 hours asks for the real end time. Summary per category and week.</li></ul></div>
+
+<h3 style="color:var(--amber);font-size:11pt;letter-spacing:.04em;text-transform:uppercase;font-family:'Segoe UI',sans-serif">Literature</h3>
+<div class="module"><h3>References <span class="where">your library</span></h3>
+<ul>
+  <li><strong>Add by</strong> DOI (Crossref), arXiv ID, PDF upload (the DOI is read from its first pages), BibTeX import (Zotero, Mendeley, Google Scholar), or by hand. Offline, the form still opens for typing.</li>
+  <li>Duplicates are caught: the same DOI is blocked; a near-identical title offers a merge.</li>
+  <li>Reading status, 1–5 rating, chapters, notes, and highlights in the built-in PDF viewer.</li>
+  <li><strong>Bibliography:</strong> IEEE-formatted, exported to Word or <code>.bib</code>.</li>
+</ul></div>
+<div class="module"><h3>Matrix <span class="where">literature matrix</span></h3>
+<ul><li>Spreadsheet view of every reference: country, dataset, sample, label source, method, metrics, key result, limitations, relevance. Click a cell to edit (<span class="kbd">Enter</span> saves, <span class="kbd">Esc</span> cancels). Choose columns. Export CSV or Excel.</li></ul></div>
+<div class="module"><h3>Files <span class="where">read-only index of your research folders</span></h3>
+<ul><li>Every file with type, size, pages and tags. <em>Open</em> / <em>Show in Explorer</em>. PDFs open in the built-in viewer. <strong>Duplicates</strong> page groups identical files (the app never deletes anything). <strong>Recent</strong> changes, <strong>Re-scan now</strong>, and <em>Make reference</em> from a PDF.</li></ul></div>
+<div class="module"><h3>Search <span class="where">everything in one place</span></h3>
+<ul><li>Files (including PDF text page by page), references, notes, diary, tasks, inbox, experiments and labels, with highlighted snippets. Save frequent searches. Optional <em>Meaning</em> mode (section 8).</li></ul></div>
+
+<h3 style="color:var(--amber);font-size:11pt;letter-spacing:.04em;text-transform:uppercase;font-family:'Segoe UI',sans-serif">Writing &amp; research</h3>
+<div class="module"><h3>Thesis <span class="where">chapter tracker</span></h3>
+<ul><li>Chapters with status and target/actual word counts read from your thesis <code>.docx</code> (it reads a copy if Word has it open), abstract-length badge, word-count history chart, supervisor comments per chapter, and editable submission checklists.</li></ul></div>
+<div class="module"><h3>Labels <span class="where">dataset label tracker</span></h3>
+<ul><li>For projects that build a labelled dataset: one row per entity × period × evidence source (primary record, published source, expert judgement, rule, survey, other), with label 0/1, evidence strength, evidence link or file, "doubtful" and "reviewed with supervisor" flags. An entity-period is positive if any row is positive. Versioned labelling rules. CSV export. Ignore this page if your project doesn't need it.</li></ul></div>
+<div class="module"><h3>Experiments <span class="where">ML run log</span></h3>
+<ul><li>Runs with approach (baseline, proposed, ablation, tuning, transfer, other), model, data version, split, parameters and metrics. Star the best, compare runs side by side. Log straight from Jupyter (section 8).</li></ul></div>
+<div class="module"><h3>Viva <span class="where">presentation practice</span></h3>
+<ul><li>Slide checklist; practice timer for a 15-minute talk plus 5 minutes of questions (amber at two minutes left, red overtime); practice-run history; question bank with prepared answers and confidence; <strong>Drill</strong> mode asks your shakiest questions first.</li></ul></div>
+
+<h3 style="color:var(--amber);font-size:11pt;letter-spacing:.04em;text-transform:uppercase;font-family:'Segoe UI',sans-serif">You</h3>
+<div class="module"><h3>Inbox <span class="where">quick capture</span></h3>
+<ul><li>Everything captured with <span class="kbd">Alt</span>+<span class="kbd">N</span>. Turn each item into a task, a reference note or a meeting agenda point, or archive it.</li></ul></div>
+<div class="module"><h3>Settings</h3>
+<ul><li>Configuration (section 4), milestones, backup (section 7), <em>Your data</em> (section 6) and <em>About</em> (credits and contact).</li></ul></div>
+</section>
+
+<!-- ============ 6 DATA ============ -->
+<section class="section">
+<h2><span class="n">6</span>Your data: where it is saved</h2>
+<div class="note"><strong>Everything saves instantly, and stays on your computer.</strong> There is no Save-all step and no cloud account. When you press Save, tick a box, drag a card or stop the timer, the change is written to the database straight away.</div>
+<table>
+  <thead><tr><th style="width:30%">Location (inside the app folder)</th><th>Contents</th></tr></thead>
+  <tbody>
+    <tr><td><code>data\research.db</code></td><td><strong>Everything you type</strong>: settings, milestones, diary, tasks, time, references, notes, highlights, matrix, file index, thesis, labels, experiments, viva questions, inbox, saved searches. One SQLite file. <code>research.db-wal</code> and <code>-shm</code> next to it belong to it.</td></tr>
+    <tr><td><code>data\library\</code></td><td>PDFs you upload on the References page (copies).</td></tr>
+    <tr><td><code>data\exports\</code></td><td>Every Word, CSV, Excel and .bib file you export.</td></tr>
+    <tr><td><code>data\models\</code></td><td>The semantic-search model, once downloaded (about 90 MB).</td></tr>
+    <tr><td><code>data\app.log</code>, <code>data\server.log</code></td><td>Logs for troubleshooting.</td></tr>
+    <tr><td><code>data\secret_key</code></td><td>Random key that protects forms. Recreated if lost; don't share it.</td></tr>
+    <tr><td><code>backups\</code> (or your backup folder)</td><td>Daily and manual backup zips.</td></tr>
+    <tr><td><code>experiments_pending.jsonl</code></td><td>Runs logged from Jupyter while the app was closed; imported on next start.</td></tr>
+    <tr><td><code>sample-data\</code></td><td>The demo only (from <code>demo.bat</code>). Safe to delete.</td></tr>
+    <tr><td>Your browser</td><td>Only view preferences: light/dark theme, last timer category, chosen matrix columns.</td></tr>
+  </tbody>
+</table>
+<p>Your research folders are only ever <em>read</em>: the app never changes, moves or deletes your files. The <code>data</code> and <code>backups</code> folders are excluded from Git, so your work is never uploaded to GitHub.</p>
+
+<h3>How to look at your data</h3>
+<ol class="steps">
+  <li><strong>Inside the app:</strong> Settings → <em>Your data</em> shows each location with its size, how many records of each kind you have, and an <em>Open data folder</em> button.</li>
+  <li><strong>As ordinary files:</strong> use the export buttons (Diary → Word, Matrix → Excel/CSV, Bibliography → Word/.bib, Labels → CSV).</li>
+  <li><strong>The raw tables:</strong> install the free <strong>DB Browser for SQLite</strong> (sqlitebrowser.org), choose <em>Open Database Read Only</em> → <code>data\research.db</code>, then the <em>Browse Data</em> tab.</li>
+</ol>
+
+<h3>Main database tables</h3>
+<table>
+  <thead><tr><th style="width:38%">Table</th><th>Holds</th></tr></thead>
+  <tbody>
+    <tr><td><code>settings</code>, <code>milestones</code></td><td>Configuration and the 34-week plan</td></tr>
+    <tr><td><code>diary_entries</code>, <code>tasks</code>, <code>time_entries</code></td><td>Supervision, Kanban, hours</td></tr>
+    <tr><td><code>refs</code>, <code>highlights</code></td><td>Library (matrix columns are <code>lm_*</code>) and PDF highlights</td></tr>
+    <tr><td><code>files</code>, <code>index_jobs</code>, <code>chunks</code></td><td>File index, scan history, semantic-search passages</td></tr>
+    <tr><td><code>chapters</code>, <code>chapter_comments</code>, <code>checklist_items</code>, <code>thesis_counts</code></td><td>Thesis tracker</td></tr>
+    <tr><td><code>dataset_labels</code>, <code>label_rules</code></td><td>Label tracker rows and versioned labelling rules</td></tr>
+    <tr><td><code>experiments</code>, <code>viva_questions</code>, <code>practice_runs</code></td><td>ML runs and viva preparation</td></tr>
+    <tr><td><code>inbox</code>, <code>tags</code>, <code>taggings</code>, <code>links</code>, <code>saved_searches</code>, <code>backups</code></td><td>Capture, tags, cross-links, saved searches, backup history</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ============ 7 BACKUP ============ -->
+<section class="section flow">
+<h2><span class="n">7</span>Backup and restore</h2>
+<h3>Backups</h3>
+<ul>
+  <li><strong>Automatic:</strong> on every start-up, if the last backup is more than 24 hours old.</li>
+  <li><strong>Manual:</strong> Settings → Backup → <strong>Back up now</strong>.</li>
+  <li>Each backup is a zip named <code>researchhub_YYYYMMDD_HHMM.zip</code> containing <code>research.db</code> and <code>library\</code>. The newest <em>Backups to keep</em> (default 10) are kept.</li>
+  <li><strong>Recommended:</strong> set <em>Backup folder</em> to a folder inside OneDrive or Google Drive so a copy survives a lost or broken laptop.</li>
+</ul>
+<h3>Restoring a backup</h3>
+<ol class="steps">
+  <li>Stop the app: Settings → Your data → <strong>Quit Research Hub</strong>.</li>
+  <li>Copy the current <code>data</code> folder somewhere safe, just in case.</li>
+  <li>Unzip the chosen backup over <code>data\</code>, replacing <code>research.db</code> and <code>library\</code>.</li>
+  <li>Delete any <code>research.db-wal</code> and <code>research.db-shm</code> files left beside it.</li>
+  <li>Start the app again with the shortcut.</li>
+</ol>
+<h3>Moving to a new laptop</h3>
+<ol class="steps">
+  <li>Install Python (section 2, step 1).</li>
+  <li>Copy the whole app folder (you can leave out <code>.venv</code> and <code>sample-data</code>).</li>
+  <li>Double-click <code>start.bat</code>; it rebuilds <code>.venv</code> and makes a new desktop shortcut.</li>
+  <li>Update <em>Research folders</em>, <em>Thesis .docx path</em> and <em>Backup folder</em> in Settings if the paths changed.</li>
+</ol>
+<h3>Updating to a newer version</h3>
+<p>With Git: <code>git pull</code> in the app folder, then run <code>start.bat</code>. With a ZIP: download the new ZIP, extract it, and copy your old <code>data</code> folder into the new app folder before running <code>start.bat</code>. Database updates are applied automatically on start.</p>
+</section>
+
+<!-- ============ 8 INTEGRATIONS ============ -->
+<section class="section flow">
+<h2><span class="n">8</span>Jupyter logging and semantic search</h2>
+<h3>Logging experiment runs from Jupyter</h3>
+<pre>import sys; sys.path.append(r"C:\ResearchHub\scripts")
+from log_experiment import log_run
+log_run(run_name="rf_baseline_v1", approach="baseline", model="RandomForest",
+        params={"n_estimators": 200}, metrics={"accuracy": 0.86, "f1": 0.81})</pre>
+<ul>
+  <li><code>approach</code> is one of <code>baseline</code>, <code>proposed</code>, <code>ablation</code>, <code>tuning</code>, <code>transfer</code>, <code>other</code>. Metrics must be numbers.</li>
+  <li>If the app is not running, the run is saved to <code>experiments_pending.jsonl</code> and imported on the next start.</li>
+  <li>The helper posts JSON to <code>http://127.0.0.1:8000/api/experiments</code>; any program on your computer can do the same.</li>
+</ul>
+<h3>Semantic ("Meaning") search: optional</h3>
+<p>Keyword search finds exact words; Meaning search finds passages about an idea even when the wording differs.</p>
+<ol class="steps">
+  <li>Install the extra packages once (a large download, mostly PyTorch):
+<pre>cd C:\ResearchHub
+.venv\Scripts\pip install -r requirements-semantic.txt</pre></li>
+  <li>Settings → Integrations → switch on <strong>Semantic search</strong> → Save.</li>
+  <li>The next scan downloads the all-MiniLM-L6-v2 model (about 90 MB) into <code>data\models</code> and processes your files in the background (about 5 minutes for 140 papers). After that it works offline.</li>
+  <li>The Search page gets a <em>Keyword / Meaning</em> toggle.</li>
+</ol>
+<h3>Internet use</h3>
+<p>The app works fully offline except for DOI lookups (Crossref), arXiv lookups, and the one-time installs above.</p>
+</section>
+
+<!-- ============ 9 KEYS + TROUBLESHOOTING ============ -->
+<section class="section">
+<h2><span class="n">9</span>Shortcuts, search syntax, troubleshooting</h2>
+<div class="grid2">
+<div>
+<h3>Keyboard</h3>
+<table>
+  <tbody>
+    <tr><td style="width:40%"><span class="kbd">/</span></td><td>Jump to search</td></tr>
+    <tr><td><span class="kbd">Alt</span>+<span class="kbd">N</span></td><td>Quick capture to Inbox</td></tr>
+    <tr><td><span class="kbd">Alt</span>+<span class="kbd">T</span></td><td>Start or stop the timer</td></tr>
+    <tr><td><span class="kbd">?</span></td><td>List of shortcuts</td></tr>
+    <tr><td><span class="kbd">Enter</span> / <span class="kbd">Esc</span></td><td>Save / cancel a matrix cell</td></tr>
+  </tbody>
+</table>
+</div>
+<div>
+<h3>Search syntax (Keyword mode)</h3>
+<table>
+  <tbody>
+    <tr><td style="width:48%"><code>transformer</code></td><td>Items with the word</td></tr>
+    <tr><td><code>air quality</code></td><td>Items with both words</td></tr>
+    <tr><td><code>"neural network"</code></td><td>The exact phrase</td></tr>
+    <tr><td><code>"neural network" -image</code></td><td>Phrase, excluding "image"</td></tr>
+    <tr><td><code>LSTM OR GRU</code></td><td>Either word</td></tr>
+    <tr><td><code>learn*</code></td><td>Words starting with "learn"</td></tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+<h3>Troubleshooting</h3>
+<table>
+  <thead><tr><th style="width:32%">Problem</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td>start.bat says Python is not installed</td><td>Install Python and tick "Add python.exe to PATH" (section 2). Then run start.bat again.</td></tr>
+    <tr><td>start.bat says "Setup failed"</td><td>Check your internet connection and run it again. Antivirus or a company proxy can block downloads.</td></tr>
+    <tr><td>Setup error mentions "Long Path"</td><td>The folder path is too long. Move the app folder to <code>C:\ResearchHub</code>, delete its <code>.venv</code> folder, and run <code>start.bat</code> again.</td></tr>
+    <tr><td>The shortcut shows "run start.bat first"</td><td>The <code>.venv</code> folder is missing (for example after moving the app folder). Run <code>start.bat</code> once.</td></tr>
+    <tr><td>"Research Hub did not start within 30 seconds"</td><td>Read the last lines of <code>data\server.log</code>. Often another program uses port 8000: restart the computer, or start by hand (section 3) to see the error.</td></tr>
+    <tr><td>Browser shows "This site can't be reached"</td><td>The app is not running. Use the desktop shortcut rather than a bookmark.</td></tr>
+    <tr><td>An error page with an error ID</td><td>Search <code>data\app.log</code> for that ID. Your data is not affected.</td></tr>
+    <tr><td>DOI or arXiv lookup fails</td><td>You are offline or the service is slow. Fill in the form by hand, or try later.</td></tr>
+    <tr><td>New files don't appear on Files or in Search</td><td>Press <strong>Re-scan now</strong> on the Files page; check Settings → Research folders.</td></tr>
+    <tr><td>Thesis word count doesn't update</td><td>Check Settings → Thesis .docx path and save the document in Word.</td></tr>
+    <tr><td>Something went badly wrong with data</td><td>Quit, then restore the latest backup (section 7).</td></tr>
+    <tr><td>Still stuck</td><td>WhatsApp 0717869097 or e-mail ashanvimod01@gmail.com with a screenshot and the last lines of <code>data\server.log</code>.</td></tr>
+  </tbody>
+</table>
+</section>
+
+<!-- ============ 10 TECHNICAL ============ -->
+<section class="section">
+<h2><span class="n">10</span>Technical reference and credits</h2>
+<h3>Technology</h3>
+<p>Python · Flask 3.1 served by waitress · SQLite (WAL mode, foreign keys, FTS5 full-text search) · PyMuPDF · python-docx and openpyxl · Bootstrap 5.3, HTMX 2, Alpine 3, FullCalendar, SortableJS, Chart.js and PDF.js, all stored locally in <code>static\vendor</code>. Exact versions are pinned in <code>requirements.txt</code>.</p>
+<h3>Folder layout</h3>
+<table>
+  <tbody>
+    <tr><td style="width:34%"><code>start.bat</code></td><td>First-time setup; creates the desktop shortcut</td></tr>
+    <tr><td><code>demo.bat</code></td><td>Opens the demo with sample data (port 8010)</td></tr>
+    <tr><td><code>app.py</code>, <code>config.py</code></td><td>Starts the app (127.0.0.1 only); paths, port, default settings, author credit</td></tr>
+    <tr><td><code>hub\blueprints\</code>, <code>hub\services\</code></td><td>One module per page; the logic behind them</td></tr>
+    <tr><td><code>hub\migrations\</code></td><td>Database schema, applied automatically on start</td></tr>
+    <tr><td><code>templates\</code>, <code>static\</code></td><td>Pages, styles, scripts, fonts, icon</td></tr>
+    <tr><td><code>scripts\</code></td><td><code>launch.pyw</code> (shortcut target), <code>make_shortcut.ps1</code>, <code>log_experiment.py</code>, <code>load_sample_data.py</code>, <code>fetch_vendor.py</code></td></tr>
+    <tr><td><code>docs\</code></td><td>This guide (<code>user-guide.html</code>, rebuilt into PDF with <code>build_guide.py</code>)</td></tr>
+  </tbody>
+</table>
+<h3>Security and privacy</h3>
+<p>The app listens on <code>127.0.0.1</code> only, so other computers on the network cannot reach it, and there is no login because only you can open it. Forms are protected against cross-site requests, SQL is parameterised, and file paths are checked to stay inside your configured folders. Nothing you enter is sent anywhere.</p>
+
+<div class="card" style="margin-top:6mm">
+  <h3>Credits and license</h3>
+  <p><strong>Research Hub</strong> © 2026 <strong>Vimod R.A</strong>. Released under the MIT License (see <code>LICENSE</code>): you may use, copy, modify and share it, provided the copyright notice is kept.</p>
+  <p>WhatsApp: <strong>0717869097</strong> · Gmail: <strong>ashanvimod01@gmail.com</strong></p>
+  <p class="mb-0" style="margin:0"><em>Wishing you a focused, calm and successful research journey. Good luck with your viva!</em></p>
+</div>
+</section>
+
+</body>
+</html>

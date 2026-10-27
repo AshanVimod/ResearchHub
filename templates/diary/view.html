@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Meeting {{ entry.meeting_date|nice_date }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('diary.index') }}">Diary</a></li>
+  <li class="breadcrumb-item active" aria-current="page">{{ entry.meeting_date|nice_date }}</li>
+</ol></nav>
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Meeting of {{ entry.meeting_date|nice_date }}</h1>
+    <div class="d-flex flex-wrap gap-2 mt-2">
+      {% if entry.signed %}<span class="chip success"><i class="bi bi-pen" aria-hidden="true"></i>Signed {{ entry.signed_date|nice_date }}</span>
+      {% else %}<span class="chip warning"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Not signed yet</span>{% endif %}
+      {% if entry.mode %}<span class="chip">{{ modes[entry.mode] }}</span>{% endif %}
+      {% if entry.semester %}<span class="chip">Semester {{ entry.semester }}</span>{% endif %}
+      {% if entry.attendees %}<span class="chip"><i class="bi bi-people" aria-hidden="true"></i>{{ entry.attendees }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('diary.export_one', entry_id=entry.id) }}"><i class="bi bi-file-earmark-word me-1" aria-hidden="true"></i>Export .docx</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('diary.view', entry_id=entry.id, edit=1) }}"><i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="panel"><div class="panel-body py-1">
+      {% for key, label in [('agenda','Agenda / questions'),('discussion','Discussion summary'),('decisions','Decisions made'),('supervisor_feedback','Supervisor feedback'),('reflection','Reflection')] %}
+      <section class="field-block">
+        <h3>{{ label }}</h3>
+        {% if entry[key] %}<div class="prose">{{ entry[key]|md }}</div>{% else %}<p class="text-ink-2 small mb-0">Not recorded.</p>{% endif %}
+      </section>
+      {% endfor %}
+    </div></div>
+  </div>
+  <div class="col-lg-4">
+    <div class="panel mb-3"><div class="panel-body">
+      <h2 class="h6">Signature</h2>
+      {% if entry.signed %}
+        <p class="small mb-3">Signed by the supervisor on <strong>{{ entry.signed_date|nice_date }}</strong>.</p>
+        <form method="post" action="{{ url_for('diary.sign', entry_id=entry.id) }}" data-confirm="Remove the signature from this entry? It will stop counting toward the semester total." data-confirm-label="Remove signature">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="unsign" value="1">
+          <button class="btn btn-sm btn-outline-secondary" type="submit">Remove signature</button>
+        </form>
+      {% else %}
+        <form method="post" action="{{ url_for('diary.sign', entry_id=entry.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label" for="signed_date">Signed on</label>
+          <input class="form-control mb-2" type="date" id="signed_date" name="signed_date" value="{{ today.isoformat() }}">
+          <button class="btn btn-primary w-100" type="submit"><i class="bi bi-pen me-1" aria-hidden="true"></i>Mark as signed</button>
+        </form>
+      {% endif %}
+    </div></div>
+
+    <div class="panel mb-3"><div class="panel-body">
+      <h2 class="h6">Actions before next meeting</h2>
+      {% if actions %}
+      <ul class="list-clean small">
+        {% for a in actions %}
+        <li class="row-item">
+          <i class="bi {{ 'bi-check-circle-fill text-success' if a.status == 'done' else ('bi-circle-half' if a.status == 'doing' else 'bi-circle text-ink-2') }}" aria-label="{{ a.status }}"></i>
+          <span class="{{ 'text-decoration-line-through text-ink-2' if a.status == 'done' }}">{{ a.title }}</span>
+          <span class="meta">{{ a.due_date|nice_date('%d %b') }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      <a class="small" href="{{ url_for('tasks.index') }}">Open task board</a>
+      {% else %}
+      <p class="small text-ink-2 mb-0">No actions. <a href="{{ url_for('diary.view', entry_id=entry.id, edit=1) }}">Add some</a>.</p>
+      {% endif %}
+    </div></div>
+
+    {% if linked_refs or linked_files %}
+    <div class="panel mb-3"><div class="panel-body">
+      <h2 class="h6">Linked</h2>
+      <ul class="list-clean small mb-0">
+        {% for r in linked_refs %}<li class="row-item"><i class="bi bi-journal-bookmark" aria-hidden="true"></i><a class="text-truncate" href="{{ url_for('refs.view', ref_id=r.id) }}">{{ r.cite_key }}</a></li>{% endfor %}
+        {% for f in linked_files %}<li class="row-item"><i class="bi bi-file-earmark" aria-hidden="true"></i>{% if f.ext == '.pdf' %}<a class="text-truncate" href="{{ url_for('files.view_pdf', file_id=f.id) }}" title="{{ f.rel_path }}">{{ f.name }}</a>{% else %}<span class="text-truncate" title="{{ f.rel_path }}">{{ f.name }}</span>{% endif %}</li>{% endfor %}
+      </ul>
+    </div></div>
+    {% endif %}
+
+    <div class="panel mb-3"><div class="panel-body">
+      <h2 class="h6">Next meeting</h2>
+      <p class="small mb-0">{{ entry.next_meeting_date|nice_date if entry.next_meeting_date else 'Not booked yet.' }}</p>
+    </div></div>
+
+    <form method="post" action="{{ url_for('diary.delete', entry_id=entry.id) }}" data-confirm="Delete this diary entry? Its action tasks stay on the board.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-sm btn-link text-danger px-0" type="submit"><i class="bi bi-trash me-1" aria-hidden="true"></i>Delete entry</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

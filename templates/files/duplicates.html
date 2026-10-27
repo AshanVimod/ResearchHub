@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "files/_macros.html" as fm with context %}
+{% block title %}Duplicate files{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('files.index') }}">Files</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Duplicates</li></ol></nav>
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Duplicate files</h1>
+    <p class="page-sub">Files with identical contents (same SHA-256). Mark the copy you want to keep, then tidy the others yourself in Explorer. The app never deletes anything.</p>
+  </div>
+</div>
+
+{% if groups %}
+<div class="strip mb-3" style="grid-template-columns: repeat(2, minmax(0,1fr))">
+  <div><div class="eyebrow mb-1">Duplicate groups</div><div class="stat num">{{ groups|length }}</div></div>
+  <div><div class="eyebrow mb-1">Space taken by extra copies</div><div class="stat num">{{ wasted|filesize }}</div></div>
+</div>
+{% for g in groups %}
+<section class="panel mb-3" id="g-{{ g.sha256[:12] }}" aria-label="Group of {{ g.files|length }} copies of {{ g.files[0].name }}">
+  <div class="panel-head">
+    <h2 class="panel-title text-truncate">{{ fm.icon(g.files[0].ext) }}<span class="text-truncate">{{ g.files[0].name }}</span></h2>
+    <span class="small text-ink-2 text-nowrap">{{ g.files|length }} copies · {{ g.size|filesize }} each · {{ g.wasted|filesize }} extra</span>
+  </div>
+  <div class="panel-body">
+    <ul class="list-clean">
+      {% for f in g.files %}
+      {% set keeper = 'keep' in tags.get(f.id, []) %}
+      <li class="row-item">
+        {% if keeper %}<span class="chip success"><i class="bi bi-check2" aria-hidden="true"></i>Keeper</span>{% endif %}
+        <span class="small text-truncate font-monospace" title="{{ f.root }}\{{ f.rel_path }}">{{ f.rel_path }}</span>
+        <span class="meta d-flex align-items-center gap-1">
+          <span class="num hide-sm">{{ f.mtime|timestamp('%d %b %Y') }}</span>
+          {% if not keeper %}
+          <form method="post" action="{{ url_for('files.keep', file_id=f.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Mark keeper</button></form>
+          {% endif %}
+          {{ fm.actions(f, request.full_path, None, tags) }}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endfor %}
+{% else %}
+<div class="panel"><div class="empty"><i class="bi bi-files" aria-hidden="true"></i><h3>No duplicates</h3><p>Every indexed file is unique. Re-scan after adding files to check again.</p>
+  <a class="btn btn-outline-secondary" href="{{ url_for('files.index') }}">Back to files</a></div></div>
+{% endif %}
+{% endblock %}

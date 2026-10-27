@@ -1,0 +1,18 @@
+<div x-data="{ edit: {{ 'false' if ref.notes else 'true' }} }">
+  <div x-show="!edit">
+    <div class="prose">{{ ref.notes|md }}</div>
+    <div class="d-flex align-items-center gap-2 mt-2">
+      <button class="btn btn-sm btn-outline-secondary" type="button" @click="edit = true; $nextTick(() => $refs.ta.focus())">Edit notes</button>
+      {% if saved %}<span class="small text-success" role="status"><i class="bi bi-check2" aria-hidden="true"></i> Saved</span>{% endif %}
+    </div>
+  </div>
+  <form x-show="edit" hx-post="{{ url_for('refs.quick', ref_id=ref.id) }}" hx-target="#notes-box" hx-swap="innerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="visually-hidden" for="notes-ta">Notes</label>
+    <textarea class="form-control mb-2" id="notes-ta" name="notes" rows="6" x-ref="ta" placeholder="What is the paper's argument? How does it relate to your project? Markdown works.">{{ ref.notes or '' }}</textarea>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm btn-primary" type="submit">Save notes</button>
+      {% if ref.notes %}<button class="btn btn-sm btn-ghost" type="button" @click="edit = false">Cancel</button>{% endif %}
+    </div>
+  </form>
+</div>

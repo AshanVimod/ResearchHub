@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Request problem{% endblock %}
+{% block content %}
+<div class="later-hero"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+  <h1 class="page-title my-2">Something was off with that request</h1><p class="text-ink-2">{{ message }}</p>
+  <a class="btn btn-primary" href="javascript:history.back()">Go back</a></div>
+{% endblock %}

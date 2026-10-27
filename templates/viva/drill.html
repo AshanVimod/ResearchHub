@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Drill{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('viva.index') }}">Viva prep</a></li>
+  <li class="breadcrumb-item active" aria-current="page">Drill</li></ol></nav>
+<div class="page-head">
+  <div><h1 class="page-title">Drill</h1>
+    <p class="page-sub">Shakiest questions first. Answer out loud, then reveal your prepared answer and rate yourself again.</p></div>
+  <form method="get" class="d-flex gap-2 align-items-center">
+    <label class="visually-hidden" for="d-cat">Category</label>
+    <select class="form-select form-select-sm" id="d-cat" name="category" onchange="this.form.submit()"><option value="">All categories</option>
+      {% for k, v in categories.items() %}<option value="{{ k }}" {{ 'selected' if f_cat == k }}>{{ v }}</option>{% endfor %}</select>
+  </form>
+</div>
+
+<div class="drill-card panel" x-data="{ show: false }" @keydown.window.space.prevent="if (!['TEXTAREA','INPUT','SELECT','BUTTON'].includes($event.target.tagName)) show = true">
+  {% if q %}
+  <div class="panel-body">
+    <div class="d-flex justify-content-between small text-ink-2 mb-3">
+      <span>Question {{ seen|length + 1 }} of {{ total }}</span>
+      <span><span class="chip">{{ categories.get(q.category, q.category) }}</span> <span class="conf conf-{{ q.confidence }}">{{ confidence[q.confidence] }}</span></span>
+    </div>
+    <h2 class="drill-q">{{ q.question }}</h2>
+    <div class="mt-4" x-show="!show">
+      <button class="btn btn-outline-secondary" type="button" @click="show = true; $nextTick(() => $refs.ans.focus())">Reveal answer <span class="kbd ms-1">Space</span></button>
+    </div>
+    <div class="mt-4" x-show="show" x-cloak>
+      <div class="drill-answer" tabindex="-1" x-ref="ans">
+        {% if q.answer %}<div class="prose">{{ q.answer|md }}</div>{% else %}<p class="text-ink-2 mb-0">No prepared answer yet. <a href="{{ url_for('viva.index') }}#questions">Write one</a>.</p>{% endif %}
+      </div>
+      <form class="mt-4" method="post" action="{{ url_for('viva.rate', qid=q.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="seen" value="{{ seen|join(',') }}"><input type="hidden" name="category" value="{{ f_cat }}">
+        <fieldset><legend class="small text-ink-2 mb-2">How confident were you?</legend>
+          <div class="d-flex flex-wrap gap-2">
+            {% for k, v in confidence.items() %}<button class="btn btn-outline-secondary" type="submit" name="confidence" value="{{ k }}"><span class="conf conf-{{ k }} me-1" aria-hidden="true"></span>{{ v }}</button>{% endfor %}
+          </div></fieldset>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty">
+    <i class="bi bi-check2-circle" aria-hidden="true"></i>
+    {% if total %}<h3>Round complete</h3><p>You went through all {{ total }} question{{ 's' if total != 1 }}.</p>
+      <a class="btn btn-primary" href="{{ url_for('viva.drill', category=f_cat or None) }}">Start another round</a>
+    {% else %}<h3>No questions to drill</h3><p>Add questions to the bank first.</p>
+      <a class="btn btn-primary" href="{{ url_for('viva.index') }}#questions">Go to the question bank</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

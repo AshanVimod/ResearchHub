@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Add reference{% endblock %}
+{% set modes = [('doi', 'DOI', 'upc-scan'), ('arxiv', 'arXiv', 'archive'), ('pdf', 'PDF', 'file-earmark-pdf'), ('website', 'Website', 'globe2'), ('manual', 'Manual', 'pencil')] %}
+{% block content %}
+<div class="page-head"><div><h1 class="page-title">Add a reference</h1>
+  <p class="page-sub">Lookups fill the form for you to check. If you're offline, the form still opens so you can type the details.</p></div></div>
+{% include "refs/_tabs.html" %}
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="panel" x-data="{ mode: '{{ mode if mode in ['doi','arxiv','pdf','website','manual'] else 'doi' }}' }">
+      <div class="panel-body">
+        <div class="seg mb-4" role="tablist" aria-label="Add by">
+          {% for key, label, icon in modes %}
+          <button type="button" role="tab" :aria-selected="mode === '{{ key }}'" :class="{ active: mode === '{{ key }}' }" @click="mode = '{{ key }}'"
+                  id="tab-{{ key }}" aria-controls="pane-{{ key }}"><i class="bi bi-{{ icon }}" aria-hidden="true"></i>{{ label }}</button>
+          {% endfor %}
+        </div>
+
+        <form id="pane-doi" role="tabpanel" aria-labelledby="tab-doi" x-show="mode === 'doi'" method="post" action="{{ url_for('refs.lookup') }}" x-data="{ busy: false }" @submit="busy = true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="doi">
+          <label class="form-label" for="doi">DOI or doi.org link</label>
+          <div class="d-flex gap-2">
+            <input class="form-control" id="doi" name="doi" placeholder="10.1038/nature14539" required autofocus aria-describedby="doi-help">
+            <button class="btn btn-primary text-nowrap" type="submit" :disabled="busy"><span x-show="busy" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Look up</button>
+          </div>
+          <div class="form-text" id="doi-help">Queries Crossref (10-second timeout). Duplicates of an existing DOI are blocked.</div>
+        </form>
+
+        <form id="pane-arxiv" role="tabpanel" aria-labelledby="tab-arxiv" x-show="mode === 'arxiv'" x-cloak method="post" action="{{ url_for('refs.lookup') }}" x-data="{ busy: false }" @submit="busy = true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="arxiv">
+          <label class="form-label" for="arxiv">arXiv id or URL</label>
+          <div class="d-flex gap-2">
+            <input class="form-control" id="arxiv" name="arxiv" placeholder="2607.19259 or https://arxiv.org/abs/2607.19259" required>
+            <button class="btn btn-primary text-nowrap" type="submit" :disabled="busy"><span x-show="busy" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Look up</button>
+          </div>
+        </form>
+
+        <form id="pane-pdf" role="tabpanel" aria-labelledby="tab-pdf" x-show="mode === 'pdf'" x-cloak method="post" action="{{ url_for('refs.lookup') }}" enctype="multipart/form-data" x-data="{ busy: false }" @submit="busy = true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="pdf">
+          <label class="form-label" for="pdf">PDF file</label>
+          <input class="form-control mb-2" type="file" id="pdf" name="pdf" accept="application/pdf,.pdf" required aria-describedby="pdf-help">
+          <div class="form-text mb-3" id="pdf-help">Copied into <code>data/library/</code>. The app looks for a DOI on the first two pages and falls back to the PDF's title. For a PDF already in your research folder, use <a href="{{ url_for('files.index', ext='.pdf') }}">Files</a> → <em>Make reference</em>, which links the file instead of copying it.</div>
+          <button class="btn btn-primary" type="submit" :disabled="busy"><span x-show="busy" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Upload and read</button>
+        </form>
+
+        <form id="pane-website" role="tabpanel" aria-labelledby="tab-website" x-show="mode === 'website'" x-cloak method="post" action="{{ url_for('refs.lookup') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="website">
+          <label class="form-label" for="url">Page URL</label>
+          <div class="d-flex gap-2">
+            <input class="form-control" id="url" name="url" type="url" inputmode="url" placeholder="https://example.org/report" required>
+            <button class="btn btn-primary" type="submit">Continue</button>
+          </div>
+          <div class="form-text">The access date defaults to today.</div>
+        </form>
+
+        <form id="pane-manual" role="tabpanel" aria-labelledby="tab-manual" x-show="mode === 'manual'" x-cloak method="post" action="{{ url_for('refs.lookup') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="manual">
+          <p class="mb-3">Type every field yourself: books, reports, theses or anything without a DOI.</p>
+          <button class="btn btn-primary" type="submit">Open the empty form</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="panel"><div class="panel-body small">
+      <h2 class="h6">Tips</h2>
+      <ul class="mb-0 ps-3 text-ink-2">
+        <li class="mb-1">Titles are converted to sentence case for IEEE. Acronyms like LSTM stay as they are. Check proper nouns before saving.</li>
+        <li class="mb-1">arXiv only gives full names, so the last word becomes the family name. Fix names like “Van der Berg” by hand.</li>
+        <li class="mb-1">Cite keys follow <code>family + year + first word</code>, e.g. <code>lecun2015deep</code>.</li>
+        <li>Have a reference manager export? <a href="{{ url_for('refs.import_form') }}">Import BibTeX</a>.</li>
+      </ul>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

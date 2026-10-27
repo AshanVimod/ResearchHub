@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Experiments{% endblock %}
+{% macro fmt(v) %}{% if v is number %}{{ ('%.3f'|format(v)).rstrip('0').rstrip('.') if v is float else v }}{% elif v is not none %}{{ v }}{% endif %}{% endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Experiments</h1>
+    <p class="page-sub">Runs logged from Jupyter with <code>log_run()</code> or added by hand. Click a column header to sort.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="#howto"><i class="bi bi-journal-code me-1" aria-hidden="true"></i>Log from a notebook</a>
+    <a class="btn btn-primary" href="{{ url_for('experiments.new') }}"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add run</a>
+  </div>
+</div>
+
+<form class="d-flex flex-wrap gap-2 mb-3 align-items-center" method="get" aria-label="Filter runs">
+  <label class="visually-hidden" for="ea">Approach</label>
+  <select class="form-select form-select-sm w-auto" id="ea" name="approach" onchange="this.form.submit()"><option value="">All approaches</option>
+    {% for k, v in approaches.items() %}<option value="{{ k }}" {{ 'selected' if f.approach == k }}>{{ v }}</option>{% endfor %}</select>
+  <label class="visually-hidden" for="em">Model</label>
+  <select class="form-select form-select-sm w-auto" id="em" name="model" onchange="this.form.submit()"><option value="">All models</option>
+    {% for m in models %}<option {{ 'selected' if f.model == m }}>{{ m }}</option>{% endfor %}</select>
+  <div class="form-check"><input class="form-check-input" type="checkbox" id="es" name="starred" value="1" {{ 'checked' if f.starred == '1' }} onchange="this.form.submit()">
+    <label class="form-check-label small" for="es">Starred only</label></div>
+</form>
+
+<form method="get" action="{{ url_for('experiments.compare') }}" x-data="{ n: 0 }" @change="n = $el.querySelectorAll('input[name=id]:checked').length">
+  <div class="panel mb-3">
+    {% if rows %}
+    <div class="table-responsive"><table class="table table-hover table-sm exp-table" data-sortable>
+      <thead><tr>
+        <th scope="col"><span class="visually-hidden">Compare</span></th>
+        <th scope="col"><span class="visually-hidden">Star</span></th>
+        <th scope="col" aria-sort="none"><button type="button" class="sort-btn" data-type="text">Run</button></th>
+        <th scope="col" aria-sort="none"><button type="button" class="sort-btn" data-type="text">Approach</button></th>
+        <th scope="col" aria-sort="none"><button type="button" class="sort-btn" data-type="text">Model</button></th>
+        {% for c in cols %}<th scope="col" class="text-end" aria-sort="none"><button type="button" class="sort-btn" data-type="num">{{ labels.get(c, c) }}</button></th>{% endfor %}
+        <th scope="col" aria-sort="descending"><button type="button" class="sort-btn" data-type="text">When</button></th>
+      </tr></thead>
+      <tbody>
+      {% for r in rows %}
+        {% set m = metrics[r.id] %}
+        <tr>
+          <td><input class="form-check-input" type="checkbox" name="id" value="{{ r.id }}" aria-label="Compare {{ r.run_name }}" :disabled="n >= 4 && !$el.checked"></td>
+          <td>{% with exp=r %}{% include "experiments/_star.html" %}{% endwith %}</td>
+          <td data-sort="{{ r.run_name }}"><a class="fw-semibold" href="{{ url_for('experiments.view', exp_id=r.id) }}">{{ r.run_name }}</a>
+            {% if r.data_version %}<div class="small text-ink-2">{{ r.data_version }}</div>{% endif %}</td>
+          <td class="small" data-sort="{{ r.approach }}">{{ approaches.get(r.approach, r.approach) }}</td>
+          <td class="small" data-sort="{{ r.model or '' }}">{{ r.model or '' }}</td>
+          {% for c in cols %}
+          <td class="text-end num {{ 'fw-bold best' if best[c] == r.id }}" data-sort="{{ m.get(c, '') }}">{{ fmt(m.get(c)) }}{% if best[c] == r.id %}<span class="visually-hidden"> (best)</span>{% endif %}</td>
+          {% endfor %}
+          <td class="small num text-nowrap" data-sort="{{ r.run_at }}">{{ r.run_at.replace('T', ' ')[:16] }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <div class="empty"><i class="bi bi-clipboard-data" aria-hidden="true"></i><h3>No runs logged yet</h3>
+      <p>Call <code>log_run()</code> at the end of a notebook cell. Each run lands here with its metrics.</p>
+      <a class="btn btn-primary" href="#howto">See how</a></div>
+    {% endif %}
+  </div>
+  {% if rows|length > 1 %}
+  <div class="d-flex align-items-center gap-2 mb-4">
+    <button class="btn btn-outline-secondary" type="submit" :disabled="n < 2"><i class="bi bi-layout-three-columns me-1" aria-hidden="true"></i>Compare selected</button>
+    <span class="small text-ink-2" aria-live="polite" x-text="n ? n + ' selected (2–4)' : 'Tick 2–4 runs to compare'"></span>
+  </div>
+  {% endif %}
+</form>
+
+<section class="panel" id="howto" aria-labelledby="howto-h">
+  <div class="panel-head"><h2 class="panel-title" id="howto-h"><i class="bi bi-journal-code" aria-hidden="true"></i>Logging from Jupyter</h2></div>
+  <div class="panel-body small">
+    <p>Add the project's <code>scripts</code> folder to the notebook's path once, then call <code>log_run</code>. If the app isn't running, the run is saved to <code>experiments_pending.jsonl</code> and imported the next time the app starts.</p>
+<pre class="code-block"><code>import sys; sys.path.append(r"{{ config_scripts }}")
+from log_experiment import log_run
+log_run(run_name="rf_baseline_v1", approach="baseline", model="RandomForest",
+        data_version="v1", split_desc="5-fold cross-validation",
+        params={"n_estimators": 200, "max_depth": 8},
+        metrics={"accuracy": 0.86, "f1": 0.81, "roc_auc": 0.90},
+        notebook_path="notebooks/02_baseline.ipynb")</code></pre>
+    <p class="mb-0">Approaches: {% for k in approaches %}<code>{{ k }}</code>{{ ', ' if not loop.last }}{% endfor %}. Metrics must be numbers. The git commit is filled in automatically when the notebook is inside a git repository.</p>
+  </div>
+</section>
+{% endblock %}

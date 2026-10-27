@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit entry' if entry.id else 'New diary entry' }}{% endblock %}
+{% macro err(name) %}{% if errors.get(name) %}<div class="invalid-feedback d-block" id="{{ name }}-err">{{ errors[name] }}</div>{% endif %}{% endmacro %}
+{% macro area(name, label, rows=3, hint=None) %}
+  <div class="mb-3">
+    <label class="form-label" for="{{ name }}">{{ label }}</label>
+    <textarea class="form-control" id="{{ name }}" name="{{ name }}" rows="{{ rows }}"{% if hint %} aria-describedby="{{ name }}-hint"{% endif %}>{{ entry[name] or '' }}</textarea>
+    {% if hint %}<div class="form-text" id="{{ name }}-hint">{{ hint }}</div>{% endif %}
+  </div>
+{% endmacro %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+  <li class="breadcrumb-item"><a href="{{ url_for('diary.index') }}">Diary</a></li>
+  <li class="breadcrumb-item active" aria-current="page">{{ 'Edit' if entry.id else 'New entry' }}</li>
+</ol></nav>
+<div class="page-head"><h1 class="page-title">{{ 'Edit meeting of ' ~ entry.meeting_date|nice_date if entry.id else 'New diary entry' }}</h1></div>
+
+{% if errors %}
+<div class="rh-alert danger mb-3" role="alert" tabindex="-1" id="error-summary">
+  <i class="bi bi-exclamation-octagon" aria-hidden="true"></i>
+  <span class="msg">Please fix: {% for k, v in errors.items() %}<a href="#{{ k }}">{{ v }}</a>{{ ', ' if not loop.last }}{% endfor %}</span>
+</div>
+<script>document.getElementById("error-summary").focus();</script>
+{% endif %}
+
+<form method="post" action="{{ url_for('diary.update', entry_id=entry.id) if entry.id else url_for('diary.create') }}" novalidate
+      x-data="{ actions: {{ ([] if entry.id else actions)|tojson|forceescape }}.map(a => ({ title: a.title, due: a.due_date || '' })) }">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if pending_count %}<input type="hidden" name="used_pending" value="1">
+  <div class="rh-alert warning mb-3" role="status"><i class="bi bi-inbox" aria-hidden="true"></i><span class="msg">The agenda includes {{ pending_count }} point{{ 's' if pending_count != 1 }} you sent from the inbox.</span></div>{% endif %}
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="panel mb-3"><div class="panel-body">
+        <div class="row g-3 mb-1">
+          <div class="col-sm-4">
+            <label class="form-label" for="meeting_date">Meeting date <span class="text-danger" aria-hidden="true">*</span></label>
+            <input class="form-control{{ ' is-invalid' if errors.meeting_date }}" type="date" id="meeting_date" name="meeting_date" value="{{ entry.meeting_date or '' }}" required
+                   {% if errors.meeting_date %}aria-describedby="meeting_date-err" aria-invalid="true"{% endif %}>
+            {{ err('meeting_date') }}
+          </div>
+          <div class="col-sm-3">
+            <label class="form-label" for="mode">Mode</label>
+            <select class="form-select" id="mode" name="mode">
+              {% for k, v in modes.items() %}<option value="{{ k }}" {{ 'selected' if entry.mode == k }}>{{ v }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-5">
+            <label class="form-label" for="attendees">Attendees</label>
+            <input class="form-control" id="attendees" name="attendees" value="{{ entry.attendees or '' }}">
+          </div>
+        </div>
+      </div></div>
+
+      <div class="panel mb-3"><div class="panel-body">
+        <p class="small text-ink-2 mb-3"><i class="bi bi-markdown me-1" aria-hidden="true"></i>Markdown works: **bold**, *italic*, “- ” lists.</p>
+        {{ area('agenda', 'Agenda / questions I brought', 3) }}
+        {{ area('discussion', 'Discussion summary', 4) }}
+        {{ area('decisions', 'Decisions made', 3) }}
+        {{ area('supervisor_feedback', 'Supervisor feedback', 3) }}
+        <div class="mb-0">
+          <label class="form-label" for="reflection">Reflection</label>
+          <ul class="prompt-list" id="reflection-hint"><li>What did I learn?</li><li>What went wrong?</li><li>What will I change?</li></ul>
+          <textarea class="form-control" id="reflection" name="reflection" rows="4" aria-describedby="reflection-hint">{{ entry.reflection or '' }}</textarea>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="panel mb-3"><div class="panel-body">
+        <h2 class="h6 mb-1">Actions before next meeting</h2>
+        <p class="small text-ink-2">Each new row becomes a task on save. Saving again never duplicates.</p>
+        {% if entry.id and actions %}
+        <ul class="list-clean small mb-3" aria-label="Existing actions">
+          {% for a in actions %}
+          <li class="row-item"><i class="bi {{ 'bi-check-circle-fill text-success' if a.status == 'done' else 'bi-circle text-ink-2' }}" aria-label="{{ a.status }}"></i>
+            <span class="text-truncate">{{ a.title }}</span><span class="meta">{{ a.due_date|nice_date('%d %b') }}</span>
+            <input type="hidden" name="action_title" value="{{ a.title }}"><input type="hidden" name="action_due" value="{{ a.due_date or '' }}"></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <template x-for="(a, i) in actions" :key="i">
+          <div class="d-flex gap-2 mb-2 align-items-start">
+            <div class="flex-grow-1">
+              <label class="visually-hidden" :for="'act-t-' + i">Action title</label>
+              <input class="form-control form-control-sm mb-1" :id="'act-t-' + i" name="action_title" x-model="a.title" placeholder="e.g. Re-run the baseline model">
+              <label class="visually-hidden" :for="'act-d-' + i">Due date</label>
+              <input class="form-control form-control-sm" type="date" :id="'act-d-' + i" name="action_due" x-model="a.due">
+            </div>
+            <button class="btn btn-sm btn-ghost btn-icon" type="button" @click="actions.splice(i, 1)" aria-label="Remove action"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+          </div>
+        </template>
+        <button class="btn btn-sm btn-outline-secondary" type="button" @click="actions.push({ title: '', due: '' }); $nextTick(() => document.getElementById('act-t-' + (actions.length - 1)).focus())">
+          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Add action</button>
+      </div></div>
+
+      <details class="panel mb-3"{% if linked_refs or linked_files %} open{% endif %}>
+        <summary class="panel-body py-3 fw-semibold">Linked references &amp; files{% if linked_refs or linked_files %} <span class="chip ms-1">{{ (linked_refs|length) + (linked_files|length) }}</span>{% endif %}</summary>
+        <div class="panel-body pt-0">
+          <label class="form-label small" for="link_refs">References</label>
+          <select class="form-select form-select-sm mb-1" id="link_refs" name="link_refs" multiple size="5" aria-describedby="links-help">
+            {% for r in refs %}<option value="{{ r.id }}" {{ 'selected' if r.id in linked_refs }}>{{ r.cite_key }}: {{ r.title|truncate(50) }}</option>{% endfor %}
+          </select>
+          <label class="form-label small mt-2" for="link_files">Research files</label>
+          <select class="form-select form-select-sm mb-1" id="link_files" name="link_files" multiple size="5" aria-describedby="links-help">
+            {% for f in files %}<option value="{{ f.id }}" {{ 'selected' if f.id in linked_files }}>{{ f.rel_path }}</option>{% endfor %}
+          </select>
+          <div class="form-text" id="links-help">Ctrl+click to choose several. Papers or files discussed in this meeting.</div>
+        </div>
+      </details>
+
+      <div class="panel mb-3"><div class="panel-body">
+        <label class="form-label" for="next_meeting_date">Next meeting date</label>
+        <input class="form-control{{ ' is-invalid' if errors.next_meeting_date }}" type="date" id="next_meeting_date" name="next_meeting_date" value="{{ entry.next_meeting_date or '' }}" aria-describedby="nm-hint">
+        {{ err('next_meeting_date') }}
+        <div class="form-text" id="nm-hint">Appears on the calendar and resets the meeting-gap reminder.</div>
+      </div></div>
+
+      <div class="d-grid gap-2">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1" aria-hidden="true"></i>Save entry</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('diary.view', entry_id=entry.id) if entry.id else url_for('diary.index') }}">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

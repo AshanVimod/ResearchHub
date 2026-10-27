@@ -1,0 +1,8 @@
+{% set ep = request.endpoint %}
+<nav class="subnav mb-3" aria-label="References">
+  <a href="{{ url_for('refs.index') }}" {% if ep == 'refs.index' %}class="active" aria-current="page"{% endif %}><i class="bi bi-collection" aria-hidden="true"></i>Library</a>
+  <a href="{{ url_for('refs.new') }}" {% if ep in ('refs.new', 'refs.lookup', 'refs.create') %}class="active" aria-current="page"{% endif %}><i class="bi bi-plus-lg" aria-hidden="true"></i>Add</a>
+  <a href="{{ url_for('refs.import_form') }}" {% if ep in ('refs.import_form', 'refs.import_bib') %}class="active" aria-current="page"{% endif %}><i class="bi bi-filetype-txt" aria-hidden="true"></i>Import BibTeX</a>
+  <a href="{{ url_for('refs.matrix') }}" {% if ep == 'refs.matrix' %}class="active" aria-current="page"{% endif %}><i class="bi bi-table" aria-hidden="true"></i>Matrix</a>
+  <a href="{{ url_for('refs.bibliography') }}" {% if ep == 'refs.bibliography' %}class="active" aria-current="page"{% endif %}><i class="bi bi-list-ol" aria-hidden="true"></i>Bibliography</a>
+</nav>
