@@ -96,7 +96,8 @@
                     :aria-label="running ? 'Stop timer (Alt+T)' : 'Start timer (Alt+T)'" title="Alt+T">
               <i class="bi" :class="running ? 'bi-stop-fill' : 'bi-play-fill'" aria-hidden="true"></i>
             </button>
-            <template x-if="stale">
+            <!-- Teleported to <body>: the topbar's backdrop-filter would otherwise clip a fixed-position modal to the bar. -->
+            <template x-teleport="body"><div><template x-if="stale">
               <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="stale-title" style="background:rgba(0,0,0,.45)">
                 <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
                   <div class="modal-header"><h2 class="modal-title" id="stale-title">Timer still running</h2></div>
@@ -111,7 +112,7 @@
                   </div>
                 </div></div>
               </div>
-            </template>
+            </template></div></template>
           </div>
           <button class="btn btn-ghost btn-icon hide-sm" type="button" data-bs-toggle="modal" data-bs-target="#keys-modal" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">
             <i class="bi bi-keyboard" aria-hidden="true"></i>
